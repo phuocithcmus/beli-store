@@ -31,7 +31,30 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+**Code Quality Excellence**:
+- [ ] Single responsibility principle maintained for all components
+- [ ] Type safety implementation planned where applicable
+- [ ] Code organization follows feature-based structure
+- [ ] No code duplication without documented justification
+
+**Comprehensive Testing Standards**:
+- [ ] TDD approach planned: Tests → Implementation → Refactor
+- [ ] Unit tests planned for all business logic
+- [ ] Integration tests planned for all user flows
+- [ ] End-to-end tests planned for critical paths (payments, auth)
+- [ ] 80% code coverage target achievable
+
+**User Experience Consistency**:
+- [ ] Design system compliance planned
+- [ ] Consistent interaction patterns defined
+- [ ] Accessibility requirements (WCAG 2.1 AA) addressed
+- [ ] Loading states and error handling standardized
+
+**Performance Requirements**:
+- [ ] Page load time targets defined (<3s on 3G)
+- [ ] API response time targets defined (<500ms)
+- [ ] Image optimization strategy planned
+- [ ] Bundle size monitoring strategy defined
 
 ## Project Structure
 
