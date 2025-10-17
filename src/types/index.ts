@@ -11,6 +11,87 @@ export interface Product {
   sellingPrice: number;
   createdAt: Date;
   updatedAt: Date;
+  // Enhanced fields for variant support
+  hasVariants?: boolean;
+  variants?: ProductVariant[];
+  totalVariantInventory?: number;
+  totalVariantSold?: number;
+}
+
+// Enhanced Product Variant Types
+export interface ProductVariant {
+  id: string;
+  productId: string;
+  color: string;
+  size: 'S' | 'M' | 'L' | 'XL';
+  form: 'oversized' | 'fit';
+  sku: string;
+  inventoryCount: number;
+  reservedCount: number;
+  soldCount: number;
+  sellingPrice?: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Revenue Tracking Types
+export interface RevenueEntry {
+  id: string;
+  productId: string;
+  productVariantId?: string;
+  productName: string;
+  variantDetails?: string;
+  amount: number;
+  quantity: number;
+  unitPrice: number;
+  salesChannel: string;
+  salesChannelName: string;
+  saleDate: Date;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Sales Channel Types
+export interface SalesChannel {
+  id: string;
+  name: string;
+  type: 'online' | 'manual' | 'partner';
+  isActive: boolean;
+  metadata?: Record<string, any>;
+}
+
+// Variant Sales Tracking Types
+export interface SaleTransaction {
+  id?: string;
+  variantId: string;
+  quantity: number;
+  unitPrice: number;
+  totalAmount: number;
+  saleDate: Date;
+  customerId?: string;
+  notes?: string;
+}
+
+export interface VariantSaleRecord {
+  id: string;
+  variantId: string;
+  productId: string;
+  quantity: number;
+  unitPrice: number;
+  totalAmount: number;
+  saleDate: Date;
+  customerId?: string;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface VariantSalesSummary {
+  totalSold: number;
+  totalRevenue: number;
+  averagePrice: number;
+  lastSaleDate?: Date;
 }
 
 export interface ImportPhase {
@@ -29,6 +110,7 @@ export interface ImportPhaseProduct {
   id: string;
   importPhaseId: string;
   productId: string;
+  productVariantId?: string; // Optional variant selection
   quantity: number;
   unitCost: number;
   createdAt: Date;
@@ -38,6 +120,7 @@ export interface Transaction {
   id: string;
   type: 'sale' | 'purchase';
   productId: string;
+  productVariantId?: string; // Add support for variant tracking
   quantity: number;
   unitPrice: number;
   totalAmount: number;
@@ -85,6 +168,23 @@ export interface ProductFormData {
   sellingPrice: number;
 }
 
+export interface ProductVariantFormData {
+  color: string;
+  size: 'S' | 'M' | 'L' | 'XL';
+  form: 'oversized' | 'fit';
+  inventoryCount: number;
+}
+
+export interface RevenueEntryFormData {
+  productId: string;
+  productVariantId?: string;
+  amount: string; // String for form input
+  quantity: string; // String for form input
+  salesChannel: string;
+  saleDate: string; // ISO string for form input
+  notes?: string;
+}
+
 export interface ImportPhaseFormData {
   code: string;
   date: string; // ISO string
@@ -108,10 +208,16 @@ export interface StorageSchema {
   importPhaseProducts: ImportPhaseProduct[];
   transactions: Transaction[];
   revenueRecords: RevenueRecord[];
+  // Enhanced entities for variants and revenue
+  productVariants: ProductVariant[];
+  revenueEntries: RevenueEntry[];
+  salesChannels: SalesChannel[];
   metadata: {
     version: string;
     lastBackup: Date;
     recordCounts: Record<string, number>;
+    schemaVersion: number;
+    variantSystemEnabled: boolean;
   };
 }
 

@@ -5,438 +5,286 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  RefreshCcwIcon,
-  TrendingUpIcon,
-  DollarSignIcon,
-  PercentIcon,
-} from 'lucide-react';
-import { RevenueCard } from './RevenueCard';
-import { RevenueTrendChart } from './RevenueTrendChart';
-import { TopProductsWidget } from './TopProductsWidget';
-import { RevenueFilters, type RevenueFiltersState } from './RevenueFilters';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Plus, BarChart3, TrendingUp, Filter } from 'lucide-react';
+import { RevenueDialog } from './RevenueDialog';
+import { RevenueList } from './RevenueList';
+import { RevenueAnalytics } from './RevenueAnalytics';
+import { useRevenue } from '@/features/revenue/hooks/useRevenue';
+import { useRevenueAnalytics } from '@/features/revenue/hooks/useRevenueAnalytics';
+import { useSalesChannels } from '@/features/revenue/hooks/useSalesChannels';
 import { storageService } from '@/lib/storage';
-import type { Transaction, Product } from '@/types';
-
-interface DashboardMetrics {
-  totalRevenue: number;
-  totalProfit: number;
-  profitMargin: number;
-  transactionCount: number;
-  averageOrderValue: number;
-  revenueGrowth: number;
-}
-
-interface RevenueDataPoint {
-  period: string;
-  revenue: number;
-  profit: number;
-  date: Date;
-}
-
-const defaultFilters: RevenueFiltersState = {
-  dateRange: { from: null, to: null },
-  period: 'monthly',
-  category: 'all',
-  minRevenue: null,
-  maxRevenue: null,
-  sortBy: 'date',
-  sortOrder: 'desc',
-};
+import type {
+  RevenueEntry,
+  RevenueEntryFormData,
+  Product,
+  ProductVariant,
+} from '@/types';
+import type { RevenuePeriod } from '@/features/revenue/types/revenue';
 
 export function RevenueDashboard() {
-  const [filters, setFilters] = useState<RevenueFiltersState>(defaultFilters);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [metrics, setMetrics] = useState<DashboardMetrics>({
-    totalRevenue: 0,
-    totalProfit: 0,
-    profitMargin: 0,
-    transactionCount: 0,
-    averageOrderValue: 0,
-    revenueGrowth: 0,
-  });
-  const [chartData, setChartData] = useState<RevenueDataPoint[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [activeTab, setActiveTab] = useState<
+    'overview' | 'entries' | 'analytics'
+  >('overview');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<RevenueEntry | undefined>();
+  const [analyticsPeriod, setAnalyticsPeriod] =
+    useState<RevenuePeriod>('month');
+  const [products, setProducts] = useState<
+    (Product & { variants?: ProductVariant[] })[]
+  >([]);
 
-  // Initialize dashboard with monthly data
+  // Load products with variants
+  const loadProducts = () => {
+    const productsWithVariants = storageService.getProductsWithVariants();
+    setProducts(productsWithVariants);
+  };
+
+  // Load products on mount
   useEffect(() => {
-    const initializeDashboard = () => {
-      const now = new Date();
-      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-      setFilters({
-        ...defaultFilters,
-        dateRange: { from: firstDayOfMonth, to: now },
-      });
-    };
-
-    initializeDashboard();
+    loadProducts();
   }, []);
 
-  const loadData = async () => {
+  // Custom hooks
+  const {
+    entries,
+    loading: entriesLoading,
+    error: entriesError,
+    createEntry,
+    updateEntry,
+    deleteEntry,
+  } = useRevenue();
+
+  const {
+    data: analyticsData,
+    loading: analyticsLoading,
+    error: analyticsError,
+    refreshAnalytics,
+  } = useRevenueAnalytics(analyticsPeriod);
+
+  const { channels: salesChannels } = useSalesChannels();
+
+  // Handle revenue entry save
+  const handleSaveEntry = async (data: RevenueEntryFormData) => {
     try {
-      const [transactionsData, productsData] = await Promise.all([
-        storageService.getTransactions(),
-        storageService.getProducts(),
-      ]);
-
-      setTransactions(transactionsData);
-      setProducts(productsData);
-    } catch (error) {
-      console.error('Error loading data:', error);
-    }
-  };
-
-  const filteredTransactions = useMemo(() => {
-    return transactions.filter((transaction: Transaction) => {
-      // Filter by date range
-      if (filters.dateRange.from || filters.dateRange.to) {
-        const transactionDate = new Date(transaction.date);
-        if (filters.dateRange.from && transactionDate < filters.dateRange.from)
-          return false;
-        if (filters.dateRange.to && transactionDate > filters.dateRange.to)
-          return false;
-      }
-
-      // Filter by category
-      if (filters.category !== 'all') {
-        const product = products.find((p) => p.id === transaction.productId);
-        if (!product || product.category !== filters.category) return false;
-      }
-
-      // Filter by revenue range
-      if (filters.minRevenue && transaction.totalAmount < filters.minRevenue)
-        return false;
-      if (filters.maxRevenue && transaction.totalAmount > filters.maxRevenue)
-        return false;
-
-      // Only sales transactions for revenue calculations
-      return transaction.type === 'sale';
-    });
-  }, [transactions, products, filters]);
-
-  const calculateMetrics = useMemo(() => {
-    const salesTransactions = filteredTransactions;
-
-    if (salesTransactions.length === 0) {
-      return {
-        totalRevenue: 0,
-        totalProfit: 0,
-        profitMargin: 0,
-        transactionCount: 0,
-        averageOrderValue: 0,
-        revenueGrowth: 0,
-      };
-    }
-
-    const totalRevenue = salesTransactions.reduce(
-      (sum, t) => sum + t.totalAmount,
-      0
-    );
-
-    const totalProfit = salesTransactions.reduce((sum, transaction) => {
-      const product = products.find((p) => p.id === transaction.productId);
-      if (!product) return sum;
-      return (
-        sum +
-        (transaction.unitPrice - product.purchasePrice) * transaction.quantity
-      );
-    }, 0);
-
-    const profitMargin =
-      totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
-    const averageOrderValue = totalRevenue / salesTransactions.length;
-
-    // Calculate growth (compare with previous period)
-    const currentPeriodStart = filters.dateRange.from || new Date();
-    const periodLength = filters.dateRange.to
-      ? filters.dateRange.to.getTime() - currentPeriodStart.getTime()
-      : 30 * 24 * 60 * 60 * 1000; // Default to 30 days
-
-    const previousPeriodStart = new Date(
-      currentPeriodStart.getTime() - periodLength
-    );
-    const previousPeriodTransactions = transactions.filter((t) => {
-      const date = new Date(t.date);
-      return (
-        t.type === 'sale' &&
-        date >= previousPeriodStart &&
-        date < currentPeriodStart
-      );
-    });
-
-    const previousRevenue = previousPeriodTransactions.reduce(
-      (sum, t) => sum + t.totalAmount,
-      0
-    );
-    const revenueGrowth =
-      previousRevenue > 0
-        ? ((totalRevenue - previousRevenue) / previousRevenue) * 100
-        : totalRevenue > 0
-          ? 100
-          : 0;
-
-    return {
-      totalRevenue,
-      totalProfit,
-      profitMargin,
-      transactionCount: salesTransactions.length,
-      averageOrderValue,
-      revenueGrowth,
-    };
-  }, [filteredTransactions, products, transactions, filters]);
-
-  const calculateChartData = useMemo(() => {
-    if (filteredTransactions.length === 0) return [];
-
-    // Group transactions by period
-    const groupedData = new Map<
-      string,
-      { revenue: number; profit: number; date: Date }
-    >();
-
-    filteredTransactions.forEach((transaction) => {
-      const date = new Date(transaction.date);
-      let periodKey: string;
-
-      switch (filters.period) {
-        case 'daily':
-          periodKey = date.toISOString().split('T')[0];
-          break;
-        case 'weekly':
-          const weekStart = new Date(date);
-          weekStart.setDate(date.getDate() - date.getDay());
-          periodKey = weekStart.toISOString().split('T')[0];
-          break;
-        case 'monthly':
-          periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-          break;
-        case 'yearly':
-          periodKey = date.getFullYear().toString();
-          break;
-        default:
-          periodKey = date.toISOString().split('T')[0];
-      }
-
-      const product = products.find((p) => p.id === transaction.productId);
-      const profit = product
-        ? (transaction.unitPrice - product.purchasePrice) * transaction.quantity
-        : 0;
-
-      if (groupedData.has(periodKey)) {
-        const existing = groupedData.get(periodKey)!;
-        existing.revenue += transaction.totalAmount;
-        existing.profit += profit;
+      if (editingEntry) {
+        await updateEntry(editingEntry.id, data);
       } else {
-        groupedData.set(periodKey, {
-          revenue: transaction.totalAmount,
-          profit,
-          date,
-        });
+        await createEntry(data);
       }
-    });
-
-    // Convert to array and sort
-    const chartData = Array.from(groupedData.entries()).map(
-      ([period, data]) => ({
-        period,
-        revenue: data.revenue,
-        profit: data.profit,
-        date: data.date,
-      })
-    );
-
-    return chartData.sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [filteredTransactions, products, filters.period]);
-
-  useEffect(() => {
-    const loadDashboardData = async () => {
-      setLoading(true);
-      await loadData();
-      setLoading(false);
-    };
-
-    loadDashboardData();
-  }, []);
-
-  useEffect(() => {
-    setMetrics(calculateMetrics);
-    setChartData(calculateChartData);
-  }, [calculateMetrics, calculateChartData]);
-
-  const handleFiltersChange = (newFilters: RevenueFiltersState) => {
-    setFilters(newFilters);
+      setIsDialogOpen(false);
+      setEditingEntry(undefined);
+      refreshAnalytics();
+      // Refresh products to ensure fresh data
+      loadProducts();
+    } catch (error) {
+      console.error('Failed to save revenue entry:', error);
+      throw error;
+    }
   };
 
-  const handleFiltersApply = () => {
-    // Filters are applied automatically via useMemo hooks
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 500); // Visual feedback
+  // Handle edit entry
+  const handleEditEntry = (entry: RevenueEntry) => {
+    setEditingEntry(entry);
+    setIsDialogOpen(true);
   };
 
-  const handleFiltersReset = () => {
-    setFilters(defaultFilters);
+  // Handle delete entry
+  const handleDeleteEntry = async (entryId: string) => {
+    try {
+      await deleteEntry(entryId);
+      refreshAnalytics();
+    } catch (error) {
+      console.error('Failed to delete revenue entry:', error);
+    }
   };
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
+  // Handle view entry (for now, same as edit)
+  const handleViewEntry = (entry: RevenueEntry) => {
+    handleEditEntry(entry);
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
-
-  if (loading) {
-    return (
-      <div className="space-y-6 p-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Revenue Dashboard</h1>
-          <Button disabled>
-            <RefreshCcwIcon className="mr-2 h-4 w-4 animate-spin" />
-            Loading...
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <Card key={index}>
-              <CardContent className="p-6">
-                <div className="animate-pulse">
-                  <div className="mb-2 h-4 rounded bg-muted" />
-                  <div className="h-8 rounded bg-muted" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  // Calculate summary stats
+  const totalRevenue = entries.reduce((sum, entry) => sum + entry.amount, 0);
+  const totalEntries = entries.length;
+  const totalQuantity = entries.reduce((sum, entry) => sum + entry.quantity, 0);
+  const averageOrderValue = totalEntries > 0 ? totalRevenue / totalEntries : 0;
 
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Revenue Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Revenue Tracking
+          </h1>
           <p className="text-muted-foreground">
-            Track your store's revenue and profit performance
+            Track sales performance across all channels
           </p>
         </div>
-        <Button onClick={handleRefresh} disabled={refreshing}>
-          <RefreshCcwIcon
-            className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`}
-          />
-          Refresh
+        <Button onClick={() => setIsDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Revenue Entry
         </Button>
       </div>
 
-      {/* Filters */}
-      <RevenueFilters
-        filters={filters}
-        onFiltersChange={handleFiltersChange}
-        onApply={handleFiltersApply}
-        onReset={handleFiltersReset}
-        loading={refreshing}
-      />
-
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <RevenueCard
-          title="Total Revenue"
-          value={formatCurrency(metrics.totalRevenue)}
-          change={metrics.revenueGrowth}
-          period={filters.period}
-          type="revenue"
-        />
-        <RevenueCard
-          title="Total Profit"
-          value={formatCurrency(metrics.totalProfit)}
-          change={metrics.profitMargin}
-          period={filters.period}
-          type="profit"
-        />
-        <RevenueCard
-          title="Profit Margin"
-          value={`${metrics.profitMargin.toFixed(1)}%`}
-          change={metrics.profitMargin >= 30 ? 10 : -5}
-          period={filters.period}
-          type="margin"
-        />
-        <RevenueCard
-          title="Transactions"
-          value={metrics.transactionCount}
-          change={metrics.transactionCount > 0 ? 5 : 0}
-          period={filters.period}
-          type="transactions"
-        />
+      {/* Tab Navigation */}
+      <div className="flex space-x-1 rounded-lg bg-muted p-1">
+        <Button
+          variant={activeTab === 'overview' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setActiveTab('overview')}
+          className="flex-1"
+        >
+          <BarChart3 className="mr-2 h-4 w-4" />
+          Overview
+        </Button>
+        <Button
+          variant={activeTab === 'entries' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setActiveTab('entries')}
+          className="flex-1"
+        >
+          <Filter className="mr-2 h-4 w-4" />
+          Entries
+        </Button>
+        <Button
+          variant={activeTab === 'analytics' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setActiveTab('analytics')}
+          className="flex-1"
+        >
+          <TrendingUp className="mr-2 h-4 w-4" />
+          Analytics
+        </Button>
       </div>
 
-      {/* Charts and Analytics */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <RevenueTrendChart
-            data={chartData}
-            title={`Revenue Trends - ${filters.period.charAt(0).toUpperCase() + filters.period.slice(1)}`}
-          />
-        </div>
-        <div>
-          <TopProductsWidget
-            period={
-              filters.period === 'yearly' || filters.period === 'custom'
-                ? 'all'
-                : filters.period
-            }
-            limit={5}
-          />
-        </div>
-      </div>
+      {/* Overview Tab */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Total Revenue
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  $
+                  {totalRevenue.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                  })}
+                </div>
+              </CardContent>
+            </Card>
 
-      {/* Summary Stats */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Period Summary</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4 text-center md:grid-cols-4">
-            <div>
-              <div className="text-2xl font-bold text-green-600">
-                {metrics.transactionCount}
-              </div>
-              <div className="text-sm text-muted-foreground">Transactions</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-blue-600">
-                {formatCurrency(metrics.totalRevenue)}
-              </div>
-              <div className="text-sm text-muted-foreground">Revenue</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-purple-600">
-                {formatCurrency(metrics.totalProfit)}
-              </div>
-              <div className="text-sm text-muted-foreground">Profit</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-orange-600">
-                {metrics.revenueGrowth >= 0 ? '+' : ''}
-                {metrics.revenueGrowth.toFixed(1)}%
-              </div>
-              <div className="text-sm text-muted-foreground">Growth</div>
-            </div>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Total Entries
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalEntries}</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Items Sold
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalQuantity}</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Avg Order Value
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  $
+                  {averageOrderValue.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                  })}
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Recent Entries */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Recent Revenue Entries</CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActiveTab('entries')}
+                >
+                  View All
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <RevenueList
+                entries={entries.slice(0, 5)}
+                onEdit={handleEditEntry}
+                onDelete={handleDeleteEntry}
+                onView={handleViewEntry}
+                loading={entriesLoading}
+                error={entriesError || undefined}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Entries Tab */}
+      {activeTab === 'entries' && (
+        <RevenueList
+          entries={entries}
+          onEdit={handleEditEntry}
+          onDelete={handleDeleteEntry}
+          onView={handleViewEntry}
+          loading={entriesLoading}
+          error={entriesError || undefined}
+        />
+      )}
+
+      {/* Analytics Tab */}
+      {activeTab === 'analytics' && (
+        <RevenueAnalytics
+          data={analyticsData}
+          loading={analyticsLoading}
+          error={analyticsError}
+          period={analyticsPeriod}
+          onPeriodChange={setAnalyticsPeriod}
+          onRefresh={refreshAnalytics}
+        />
+      )}
+
+      {/* Revenue Dialog */}
+      <RevenueDialog
+        isOpen={isDialogOpen}
+        onClose={() => {
+          setIsDialogOpen(false);
+          setEditingEntry(undefined);
+        }}
+        onSave={handleSaveEntry}
+        editingEntry={editingEntry}
+        products={products}
+        salesChannels={salesChannels}
+      />
     </div>
   );
 }

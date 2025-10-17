@@ -56,7 +56,9 @@ export function TopProductsWidget({
         const now = new Date();
         const filteredTransactions = transactions.filter(
           (transaction: Transaction) => {
-            if (period === 'all') return true;
+            if (period === 'all') {
+              return true;
+            }
 
             const transactionDate = new Date(transaction.date);
             const diffTime = now.getTime() - transactionDate.getTime();
@@ -79,12 +81,16 @@ export function TopProductsWidget({
         const productMetrics = new Map<string, TopProductMetrics>();
 
         for (const transaction of filteredTransactions) {
-          if (transaction.type !== 'sale') continue;
+          if (transaction.type !== 'sale') {
+            continue;
+          }
 
           const product = products.find(
             (p: Product) => p.id === transaction.productId
           );
-          if (!product) continue;
+          if (!product) {
+            continue;
+          }
 
           const revenue = transaction.totalAmount;
           const profit =
@@ -92,10 +98,12 @@ export function TopProductsWidget({
             transaction.quantity;
 
           if (productMetrics.has(product.id)) {
-            const existing = productMetrics.get(product.id)!;
-            existing.totalRevenue += revenue;
-            existing.totalProfit += profit;
-            existing.totalQuantitySold += transaction.quantity;
+            const existing = productMetrics.get(product.id);
+            if (existing) {
+              existing.totalRevenue += revenue;
+              existing.totalProfit += profit;
+              existing.totalQuantitySold += transaction.quantity;
+            }
           } else {
             productMetrics.set(product.id, {
               product,
@@ -148,9 +156,15 @@ export function TopProductsWidget({
   };
 
   const getProfitMarginColor = (margin: number) => {
-    if (margin >= 50) return 'bg-green-100 text-green-800';
-    if (margin >= 30) return 'bg-blue-100 text-blue-800';
-    if (margin >= 15) return 'bg-yellow-100 text-yellow-800';
+    if (margin >= 50) {
+      return 'bg-green-100 text-green-800';
+    }
+    if (margin >= 30) {
+      return 'bg-blue-100 text-blue-800';
+    }
+    if (margin >= 15) {
+      return 'bg-yellow-100 text-yellow-800';
+    }
     return 'bg-red-100 text-red-800';
   };
 

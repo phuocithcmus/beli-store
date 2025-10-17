@@ -1,12 +1,16 @@
+import { StorageSchema as StorageValidator } from '@/lib/validations/schemas';
 import type {
-  Product,
   ImportPhase,
   ImportPhaseProduct,
-  Transaction,
+  Product,
+  ProductVariant,
+  RevenueEntry,
   RevenueRecord,
+  SalesChannel,
   StorageSchema,
+  Transaction,
 } from '@/types';
-import { StorageSchema as StorageValidator } from '@/lib/validations/schemas';
+import { DEFAULT_SALES_CHANNELS } from './defaultData';
 
 class LocalStorageService {
   private readonly STORAGE_KEY = 'clothing-store-data';
@@ -17,6 +21,62 @@ class LocalStorageService {
   private isTestEnv =
     typeof window === 'undefined' ||
     (typeof global !== 'undefined' && global.process?.env?.NODE_ENV === 'test');
+
+  /**
+   * Migrate data to latest schema version
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private migrateDataToLatestSchema(data: any): StorageSchema {
+    // If data doesn't have the new fields, add them
+    if (!data.productVariants) {
+      data.productVariants = [];
+    }
+    if (!data.revenueEntries) {
+      data.revenueEntries = [];
+    }
+    if (!data.salesChannels) {
+      data.salesChannels = DEFAULT_SALES_CHANNELS;
+    }
+
+    // Update metadata schema
+    if (!data.metadata.schemaVersion) {
+      data.metadata.schemaVersion = 2;
+    }
+    if (data.metadata.variantSystemEnabled === undefined) {
+      data.metadata.variantSystemEnabled = true;
+    }
+
+    // Migrate existing ImportPhaseProduct records to include productVariantId field
+    if (data.importPhaseProducts && Array.isArray(data.importPhaseProducts)) {
+      data.importPhaseProducts = data.importPhaseProducts.map(
+        (ipp: Partial<ImportPhaseProduct>) => ({
+          ...ipp,
+          productVariantId: ipp.productVariantId || undefined, // Ensure field exists
+        })
+      );
+    }
+
+    // Migrate existing Transaction records to include productVariantId field
+    if (data.transactions && Array.isArray(data.transactions)) {
+      data.transactions = data.transactions.map((t: Partial<Transaction>) => ({
+        ...t,
+        productVariantId: t.productVariantId || undefined, // Ensure field exists
+      }));
+    }
+
+    // Update record counts
+    if (!data.metadata.recordCounts.productVariants) {
+      data.metadata.recordCounts.productVariants = data.productVariants.length;
+    }
+    if (!data.metadata.recordCounts.revenueEntries) {
+      data.metadata.recordCounts.revenueEntries = data.revenueEntries.length;
+    }
+    if (!data.metadata.recordCounts.salesChannels) {
+      data.metadata.recordCounts.salesChannels = data.salesChannels.length;
+    }
+
+    return data as StorageSchema;
+  }
 
   /**
    * Get all data from localStorage
@@ -45,8 +105,11 @@ class LocalStorageService {
         return value;
       });
 
-      // Validate the parsed data
-      const validated = StorageValidator.parse(parsed);
+      // Migrate data to latest schema if needed
+      const migrated = this.migrateDataToLatestSchema(parsed);
+
+      // Validate the migrated data
+      const validated = StorageValidator.parse(migrated);
       if (this.isTestEnv) {
         this.memoryStorage = validated;
       }
@@ -101,6 +164,10 @@ class LocalStorageService {
       importPhaseProducts: [],
       transactions: [],
       revenueRecords: [],
+      // Enhanced entities for variants and revenue
+      productVariants: [],
+      revenueEntries: [],
+      salesChannels: DEFAULT_SALES_CHANNELS,
       metadata: {
         version: this.VERSION,
         lastBackup: new Date(),
@@ -110,7 +177,12 @@ class LocalStorageService {
           importPhaseProducts: 0,
           transactions: 0,
           revenueRecords: 0,
+          productVariants: 0,
+          revenueEntries: 0,
+          salesChannels: DEFAULT_SALES_CHANNELS.length,
         },
+        schemaVersion: 2, // Incremented for variant system
+        variantSystemEnabled: true,
       },
     };
   }
@@ -127,6 +199,9 @@ class LocalStorageService {
       importPhaseProducts: data.importPhaseProducts.length,
       transactions: data.transactions.length,
       revenueRecords: data.revenueRecords.length,
+      productVariants: data.productVariants.length,
+      revenueEntries: data.revenueEntries.length,
+      salesChannels: data.salesChannels.length,
     };
 
     // Save without triggering recursive update
@@ -146,9 +221,97 @@ class LocalStorageService {
     return crypto.randomUUID();
   }
 
+  /**
+   * Force data migration - useful for ensuring existing data has latest schema
+   */
+  forceMigration(): void {
+    const data = this.getData();
+    // Force re-migration by calling migrateDataToLatestSchema
+    const migrated = this.migrateDataToLatestSchema(data);
+    this.saveData(migrated);
+  }
+
   // Product methods
   getProducts(): Product[] {
     return this.getData().products;
+  }
+
+  /**
+   * Get all products with their variants included
+   */
+  getProductsWithVariants(): (Product & { variants?: ProductVariant[] })[] {
+    const data = this.getData();
+    return data.products.map((product) => {
+      const variants = data.productVariants.filter(
+        (v) => v.productId === product.id
+      );
+
+      // Calculate variant-related fields (always calculate fresh to ensure accuracy)
+      const hasVariants = variants.length > 0;
+      const totalVariantInventory = variants.reduce(
+        (sum, v) => sum + v.inventoryCount,
+        0
+      );
+      const totalVariantSold = variants.reduce(
+        (sum, v) => sum + v.soldCount,
+        0
+      );
+
+      return {
+        ...product,
+        hasVariants, // Override with calculated value
+        variants,
+        totalVariantInventory: hasVariants ? totalVariantInventory : undefined,
+        totalVariantSold: hasVariants ? totalVariantSold : undefined,
+      };
+    });
+  }
+
+  /**
+   * Helper method to update product variant fields
+   */
+  private updateProductVariantFields(productId: string): void {
+    const data = this.getData();
+    const productIndex = data.products.findIndex((p) => p.id === productId);
+
+    if (productIndex !== -1) {
+      const variants = data.productVariants.filter(
+        (v) => v.productId === productId
+      );
+      const hasVariants = variants.length > 0;
+
+      data.products[productIndex].hasVariants = hasVariants;
+      data.products[productIndex].updatedAt = new Date();
+
+      // Auto-calculate product quantities from variants
+      if (hasVariants) {
+        const totalVariantInventory = variants.reduce(
+          (sum, v) => sum + v.inventoryCount,
+          0
+        );
+        const totalVariantSold = variants.reduce(
+          (sum, v) => sum + v.soldCount,
+          0
+        );
+        const totalVariantRemaining = variants.reduce(
+          (sum, v) => sum + (v.inventoryCount - v.reservedCount - v.soldCount),
+          0
+        );
+
+        // Update product quantities based on variant totals
+        data.products[productIndex].totalVariantInventory =
+          totalVariantInventory;
+        data.products[productIndex].totalVariantSold = totalVariantSold;
+        data.products[productIndex].remainingQuantity = totalVariantRemaining;
+        data.products[productIndex].soldQuantity = totalVariantSold;
+      } else {
+        data.products[productIndex].totalVariantInventory = undefined;
+        data.products[productIndex].totalVariantSold = undefined;
+        // Keep original product quantities if no variants
+      }
+
+      this.saveData(data);
+    }
   }
 
   getProduct(id: string): Product | undefined {
@@ -315,7 +478,12 @@ class LocalStorageService {
 
   addProductToImportPhase(
     importPhaseId: string,
-    productData: { productId: string; quantity: number; unitCost: number }
+    productData: {
+      productId: string;
+      productVariantId?: string;
+      quantity: number;
+      unitCost: number;
+    }
   ): ImportPhaseProduct {
     const data = this.getData();
 
@@ -330,14 +498,18 @@ class LocalStorageService {
       throw new Error('Cannot add products to completed import phase');
     }
 
-    // Check if product already exists in this phase
+    // Check if product/variant already exists in this phase
     const existingProduct = data.importPhaseProducts.find(
       (ipp) =>
         ipp.importPhaseId === importPhaseId &&
-        ipp.productId === productData.productId
+        ipp.productId === productData.productId &&
+        ipp.productVariantId === productData.productVariantId
     );
     if (existingProduct) {
-      throw new Error('Product already exists in this import phase');
+      const variantText = productData.productVariantId ? ' variant' : '';
+      throw new Error(
+        `Product${variantText} already exists in this import phase`
+      );
     }
 
     // Create the import phase product
@@ -416,6 +588,7 @@ class LocalStorageService {
     const phaseProducts = data.importPhaseProducts.filter(
       (ipp) => ipp.importPhaseId === importPhaseId
     );
+
     if (phaseProducts.length === 0) {
       throw new Error('Cannot complete import phase with no products');
     }
@@ -431,16 +604,45 @@ class LocalStorageService {
         data.products[productIndex].updatedAt = new Date();
       }
 
+      // Update variant inventory if variant is specified
+      if (phaseProduct.productVariantId) {
+        const variantIndex = data.productVariants.findIndex(
+          (v) => v.id === phaseProduct.productVariantId
+        );
+        if (variantIndex !== -1) {
+          data.productVariants[variantIndex].inventoryCount +=
+            phaseProduct.quantity;
+          data.productVariants[variantIndex].updatedAt = new Date();
+        } else {
+          // This shouldn't happen if data is consistent
+          throw new Error(
+            `Product variant with ID ${phaseProduct.productVariantId} not found`
+          );
+        }
+      } else {
+        // Log when no variant is specified (this might be expected for products without variants)
+        const product = data.products.find(
+          (p) => p.id === phaseProduct.productId
+        );
+        if (product?.hasVariants) {
+          // This could indicate a problem - a product with variants should have a variant selected
+          throw new Error(
+            `No variant specified for product ${product.code} which has variants. This may indicate a UI issue.`
+          );
+        }
+      }
+
       // Create purchase transaction
       const transaction: Transaction = {
         id: this.generateId(),
         type: 'purchase',
         productId: phaseProduct.productId,
+        productVariantId: phaseProduct.productVariantId, // Add variant tracking
         quantity: phaseProduct.quantity,
         unitPrice: phaseProduct.unitCost,
         totalAmount: phaseProduct.quantity * phaseProduct.unitCost,
         date: phase.date,
-        importPhaseId: importPhaseId,
+        importPhaseId,
         notes: `Import from phase ${phase.code}`,
         createdAt: new Date(),
       };
@@ -459,9 +661,10 @@ class LocalStorageService {
   getImportPhaseProducts(importPhaseId?: string): ImportPhaseProduct[] {
     const data = this.getData();
     if (importPhaseId) {
-      return data.importPhaseProducts.filter(
+      const filtered = data.importPhaseProducts.filter(
         (ipp) => ipp.importPhaseId === importPhaseId
       );
+      return filtered;
     }
     return data.importPhaseProducts;
   }
@@ -479,16 +682,7 @@ class LocalStorageService {
 
     data.importPhaseProducts.push(newProduct);
 
-    // Update product inventory
-    const productIndex = data.products.findIndex(
-      (p) => p.id === product.productId
-    );
-    if (productIndex !== -1) {
-      data.products[productIndex].remainingQuantity += product.quantity;
-      data.products[productIndex].updatedAt = new Date();
-    }
-
-    // Update import phase totals
+    // Update import phase totals (but NOT inventory - that happens on completion)
     const phaseIndex = data.importPhases.findIndex(
       (ip) => ip.id === product.importPhaseId
     );
@@ -969,6 +1163,362 @@ class LocalStorageService {
   }
 
   // ============================================================================
+  // PRODUCT VARIANT METHODS
+  // ============================================================================
+
+  /**
+   * Get all product variants
+   */
+  getProductVariants(): ProductVariant[] {
+    return this.getData().productVariants;
+  }
+
+  /**
+   * Get product variant by ID
+   */
+  getProductVariant(id: string): ProductVariant | undefined {
+    return this.getData().productVariants.find((v) => v.id === id);
+  }
+
+  /**
+   * Get variants for a specific product
+   */
+  getProductVariantsByProduct(productId: string): ProductVariant[] {
+    return this.getData().productVariants.filter(
+      (v) => v.productId === productId
+    );
+  }
+
+  /**
+   * Get variant by SKU
+   */
+  getProductVariantBySKU(sku: string): ProductVariant | undefined {
+    return this.getData().productVariants.filter((v) => v.sku === sku)[0];
+  }
+
+  /**
+   * Save new product variant
+   */
+  saveProductVariant(
+    variant: Omit<ProductVariant, 'id' | 'createdAt' | 'updatedAt'>
+  ): ProductVariant {
+    const data = this.getData();
+
+    // Validate required fields
+    if (!variant.sku || variant.sku.trim() === '') {
+      throw new Error('SKU is required');
+    }
+
+    // Validate inventory counts
+    if (variant.inventoryCount < 0) {
+      throw new Error('Inventory count cannot be negative');
+    }
+    if (variant.reservedCount < 0) {
+      throw new Error('Reserved count cannot be negative');
+    }
+    if (variant.soldCount < 0) {
+      throw new Error('Sold count cannot be negative');
+    }
+
+    // Check for duplicate SKU
+    if (data.productVariants.some((v) => v.sku === variant.sku)) {
+      throw new Error('SKU already exists');
+    }
+
+    const newVariant: ProductVariant = {
+      ...variant,
+      id: this.generateId(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    data.productVariants.push(newVariant);
+
+    // Update parent product variant fields
+    this.updateProductVariantFields(variant.productId);
+
+    this.saveData(data);
+    return newVariant;
+  }
+
+  /**
+   * Update product variant
+   */
+  updateProductVariant(
+    id: string,
+    updates: Partial<Omit<ProductVariant, 'id' | 'createdAt' | 'updatedAt'>>
+  ): ProductVariant {
+    const data = this.getData();
+    const index = data.productVariants.findIndex((v) => v.id === id);
+
+    if (index === -1) {
+      throw new Error('Product variant not found');
+    }
+
+    // Add a small delay to ensure timestamp difference in tests
+    const now = new Date();
+
+    const updatedVariant: ProductVariant = {
+      ...data.productVariants[index],
+      ...updates,
+      updatedAt: now,
+    };
+
+    data.productVariants[index] = updatedVariant;
+
+    // Update parent product variant fields
+    this.updateProductVariantFields(updatedVariant.productId);
+
+    this.saveData(data);
+    return updatedVariant;
+  }
+
+  /**
+   * Delete product variant
+   */
+  deleteProductVariant(id: string): boolean {
+    const data = this.getData();
+    const index = data.productVariants.findIndex((v) => v.id === id);
+
+    if (index === -1) {
+      return false;
+    }
+
+    const variant = data.productVariants[index];
+    const productId = variant.productId;
+
+    data.productVariants.splice(index, 1);
+
+    // Update parent product variant fields
+    this.updateProductVariantFields(productId);
+
+    this.saveData(data);
+    return true;
+  }
+
+  // ============================================================================
+  // REVENUE ENTRY METHODS
+  // ============================================================================
+
+  /**
+   * Get all revenue entries
+   */
+  getRevenueEntries(): RevenueEntry[] {
+    return this.getData().revenueEntries;
+  }
+
+  /**
+   * Get revenue entry by ID
+   */
+  getRevenueEntry(id: string): RevenueEntry | undefined {
+    return this.getData().revenueEntries.find((r) => r.id === id);
+  }
+
+  /**
+   * Get revenue entries by date range
+   */
+  getRevenueEntriesByDateRange(startDate: Date, endDate: Date): RevenueEntry[] {
+    return this.getData().revenueEntries.filter(
+      (r) => r.saleDate >= startDate && r.saleDate <= endDate
+    );
+  }
+
+  /**
+   * Get revenue entries by sales channel
+   */
+  getRevenueEntriesBySalesChannel(salesChannel: string): RevenueEntry[] {
+    return this.getData().revenueEntries.filter(
+      (r) => r.salesChannel === salesChannel
+    );
+  }
+
+  /**
+   * Save new revenue entry
+   */
+  saveRevenueEntry(
+    entry: Omit<RevenueEntry, 'id' | 'createdAt' | 'updatedAt'>
+  ): RevenueEntry {
+    const data = this.getData();
+
+    const newEntry: RevenueEntry = {
+      ...entry,
+      id: this.generateId(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    data.revenueEntries.push(newEntry);
+    this.saveData(data);
+    return newEntry;
+  }
+
+  /**
+   * Update revenue entry
+   */
+  updateRevenueEntry(
+    id: string,
+    updates: Partial<Omit<RevenueEntry, 'id' | 'createdAt' | 'updatedAt'>>
+  ): RevenueEntry {
+    const data = this.getData();
+    const index = data.revenueEntries.findIndex((r) => r.id === id);
+
+    if (index === -1) {
+      throw new Error('Revenue entry not found');
+    }
+
+    const updatedEntry: RevenueEntry = {
+      ...data.revenueEntries[index],
+      ...updates,
+      updatedAt: new Date(),
+    };
+
+    data.revenueEntries[index] = updatedEntry;
+    this.saveData(data);
+    return updatedEntry;
+  }
+
+  /**
+   * Delete revenue entry
+   */
+  deleteRevenueEntry(id: string): boolean {
+    const data = this.getData();
+    const index = data.revenueEntries.findIndex((r) => r.id === id);
+
+    if (index === -1) {
+      return false;
+    }
+
+    data.revenueEntries.splice(index, 1);
+    this.saveData(data);
+    return true;
+  }
+
+  // ============================================================================
+  // SALES CHANNEL METHODS
+  // ============================================================================
+
+  /**
+   * Get all sales channels
+   */
+  getSalesChannels(): SalesChannel[] {
+    return this.getData().salesChannels;
+  }
+
+  /**
+   * Get active sales channels
+   */
+  getActiveSalesChannels(): SalesChannel[] {
+    return this.getData().salesChannels.filter((c) => c.isActive);
+  }
+
+  /**
+   * Get sales channel by ID
+   */
+  getSalesChannel(id: string): SalesChannel | undefined {
+    return this.getData().salesChannels.find((c) => c.id === id);
+  }
+
+  /**
+   * Save new sales channel
+   */
+  saveSalesChannel(channel: SalesChannel): SalesChannel {
+    const data = this.getData();
+
+    // Check for duplicate ID
+    if (data.salesChannels.some((c) => c.id === channel.id)) {
+      throw new Error('Sales channel ID already exists');
+    }
+
+    data.salesChannels.push(channel);
+    this.saveData(data);
+    return channel;
+  }
+
+  /**
+   * Update sales channel
+   */
+  updateSalesChannel(
+    id: string,
+    updates: Partial<Omit<SalesChannel, 'id'>>
+  ): SalesChannel {
+    const data = this.getData();
+    const index = data.salesChannels.findIndex((c) => c.id === id);
+
+    if (index === -1) {
+      throw new Error('Sales channel not found');
+    }
+
+    const updatedChannel: SalesChannel = {
+      ...data.salesChannels[index],
+      ...updates,
+    };
+
+    data.salesChannels[index] = updatedChannel;
+    this.saveData(data);
+    return updatedChannel;
+  }
+
+  /**
+   * Delete sales channel
+   */
+  deleteSalesChannel(id: string): boolean {
+    const data = this.getData();
+    const index = data.salesChannels.findIndex((c) => c.id === id);
+
+    if (index === -1) {
+      return false;
+    }
+
+    data.salesChannels.splice(index, 1);
+    this.saveData(data);
+    return true;
+  }
+
+  // ============================================================================
+  // DEBUG METHODS (temporary)
+  // ============================================================================
+
+  /**
+   * Debug method to check products and variants
+   */
+  debugProductsAndVariants(): void {
+    const data = this.getData();
+    /* eslint-disable no-console */
+    console.log('=== DEBUG: Products and Variants ===');
+    console.log('Products:', data.products.length);
+    data.products.forEach((product) => {
+      console.log(`Product ${product.code}:`, {
+        id: product.id,
+        hasVariants: product.hasVariants,
+        variantCount: data.productVariants.filter(
+          (v) => v.productId === product.id
+        ).length,
+      });
+    });
+    console.log('Product Variants:', data.productVariants.length);
+    data.productVariants.forEach((variant) => {
+      console.log(`Variant ${variant.sku}:`, {
+        id: variant.id,
+        productId: variant.productId,
+        color: variant.color,
+        size: variant.size,
+        form: variant.form,
+      });
+    });
+    console.log('Import Phase Products:', data.importPhaseProducts.length);
+    data.importPhaseProducts.forEach((ipp) => {
+      console.log(`Import Phase Product:`, {
+        id: ipp.id,
+        productId: ipp.productId,
+        productVariantId: ipp.productVariantId,
+        quantity: ipp.quantity,
+      });
+    });
+    console.log('===================================');
+    /* eslint-enable no-console */
+  }
+
+  // ============================================================================
   // DATA EXPORT METHODS
   // ============================================================================
 
@@ -1204,7 +1754,9 @@ class LocalStorageService {
 
     const totalProfit = salesTransactions.reduce((sum, transaction) => {
       const product = products.find((p) => p.id === transaction.productId);
-      if (!product) return sum;
+      if (!product) {
+        return sum;
+      }
       return (
         sum +
         (transaction.unitPrice - product.purchasePrice) * transaction.quantity
@@ -1222,12 +1774,16 @@ class LocalStorageService {
 
     salesTransactions.forEach((transaction) => {
       const product = products.find((p) => p.id === transaction.productId);
-      if (!product) return;
+      if (!product) {
+        return;
+      }
 
       if (productSales.has(product.id)) {
-        const existing = productSales.get(product.id)!;
-        existing.quantity += transaction.quantity;
-        existing.revenue += transaction.totalAmount;
+        const existing = productSales.get(product.id);
+        if (existing) {
+          existing.quantity += transaction.quantity;
+          existing.revenue += transaction.totalAmount;
+        }
       } else {
         productSales.set(product.id, {
           quantity: transaction.quantity,

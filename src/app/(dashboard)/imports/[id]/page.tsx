@@ -5,17 +5,22 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { notFound } from 'next/navigation';
 import { ImportPhaseDetails } from '@/features/imports/components/ImportPhaseDetails';
 import { ImportPhaseForm } from '@/features/imports/components/ImportPhaseForm';
 import { AddProductsDialog } from '@/features/imports/components/AddProductsDialog';
 import { storageService } from '@/lib/storage';
-import type { ImportPhase, Product, ImportPhaseProduct } from '@/types';
+import type { ImportPhase, Product, ProductVariant } from '@/types';
 
 interface ImportPhaseWithProducts extends ImportPhase {
-  products?: (Product & { quantity: number; unitCost: number })[];
+  products?: (Product & {
+    quantity: number;
+    unitCost: number;
+    variant?: ProductVariant;
+    importPhaseProductId: string;
+  })[];
 }
 
 interface ImportPhasePageProps {
@@ -37,7 +42,7 @@ export default function ImportPhasePage({ params }: ImportPhasePageProps) {
     loadImportPhase();
   }, [params.id]);
 
-  const loadImportPhase = async () => {
+  const loadImportPhase = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -50,25 +55,38 @@ export default function ImportPhasePage({ params }: ImportPhasePageProps) {
 
       // Get phase products
       const phaseProducts = storageService.getImportPhaseProducts(params.id);
-      const allProducts = storageService.getProducts();
+      const allProducts = storageService.getProductsWithVariants();
 
-      // Map phase products to include product details
+      // Map phase products to include product and variant details
       const productsWithDetails = phaseProducts
         .map((phaseProduct) => {
           const product = allProducts.find(
             (p) => p.id === phaseProduct.productId
           );
-          if (!product) return null;
+          if (!product) {
+            return null;
+          }
+
+          let variant: ProductVariant | undefined;
+          if (phaseProduct.productVariantId) {
+            variant = storageService
+              .getProductVariantsByProduct(product.id)
+              .find((v) => v.id === phaseProduct.productVariantId);
+          }
 
           return {
             ...product,
             quantity: phaseProduct.quantity,
             unitCost: phaseProduct.unitCost,
+            variant,
+            importPhaseProductId: phaseProduct.id,
           };
         })
         .filter(Boolean) as (Product & {
         quantity: number;
         unitCost: number;
+        variant?: ProductVariant;
+        importPhaseProductId: string;
       })[];
 
       setImportPhase({
@@ -83,14 +101,16 @@ export default function ImportPhasePage({ params }: ImportPhasePageProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id]);
 
   const handleEditPhase = async (data: {
     code: string;
     date: string;
     description?: string;
   }) => {
-    if (!importPhase) return;
+    if (!importPhase) {
+      return;
+    }
 
     try {
       const updatedPhase = storageService.updateImportPhase(importPhase.id, {
@@ -121,7 +141,12 @@ export default function ImportPhasePage({ params }: ImportPhasePageProps) {
 
   const handleAddProductsToPhase = async (
     phaseId: string,
-    selections: Array<{ productId: string; quantity: number; unitCost: number }>
+    selections: {
+      productId: string;
+      productVariantId?: string;
+      quantity: number;
+      unitCost: number;
+    }[]
   ) => {
     try {
       for (const selection of selections) {
@@ -135,7 +160,8 @@ export default function ImportPhasePage({ params }: ImportPhasePageProps) {
     }
   };
 
-  const handleRemoveProduct = async (phaseId: string, productId: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleRemoveProduct = async (_phaseId: string, _productId: string) => {
     try {
       // For now, we'll show an alert that this feature needs implementation
       alert('Remove product feature will be implemented in the next update');

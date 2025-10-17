@@ -35,6 +35,7 @@ export const ImportPhaseProductSchema = z.object({
   id: z.string().uuid(),
   importPhaseId: z.string().uuid(),
   productId: z.string().uuid(),
+  productVariantId: z.string().uuid(),
   quantity: z.number().int().positive('Quantity must be positive'),
   unitCost: z.number().positive('Unit cost must be positive'),
   createdAt: z.date(),
@@ -179,6 +180,47 @@ export const StorageMetadataSchema = z.object({
   version: z.string(),
   lastBackup: z.date(),
   recordCounts: z.record(z.string(), z.number()),
+  schemaVersion: z.number().default(2),
+  variantSystemEnabled: z.boolean().default(true),
+});
+
+export const ProductVariantSchema = z.object({
+  id: z.string().uuid(),
+  productId: z.string().uuid(),
+  color: z.string().min(1),
+  size: z.enum(['S', 'M', 'L', 'XL']),
+  form: z.enum(['oversized', 'fit']),
+  sku: z.string().min(1),
+  inventoryCount: z.number().int().min(0),
+  reservedCount: z.number().int().min(0),
+  soldCount: z.number().int().min(0),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+
+export const RevenueEntrySchema = z.object({
+  id: z.string().uuid(),
+  productId: z.string().uuid(),
+  productVariantId: z.string().uuid().optional(),
+  productName: z.string().min(1),
+  variantDetails: z.string().optional(),
+  amount: z.number().min(0),
+  quantity: z.number().int().min(1),
+  unitPrice: z.number().min(0),
+  salesChannel: z.string().min(1),
+  salesChannelName: z.string().min(1),
+  saleDate: z.date(),
+  notes: z.string().max(500).optional(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+
+export const SalesChannelSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1).max(100),
+  type: z.enum(['online', 'manual', 'partner']),
+  isActive: z.boolean(),
+  metadata: z.record(z.any()).optional(),
 });
 
 export const StorageSchema = z.object({
@@ -187,6 +229,9 @@ export const StorageSchema = z.object({
   importPhaseProducts: z.array(ImportPhaseProductSchema),
   transactions: z.array(TransactionSchema),
   revenueRecords: z.array(RevenueRecordSchema),
+  productVariants: z.array(ProductVariantSchema),
+  revenueEntries: z.array(RevenueEntrySchema),
+  salesChannels: z.array(SalesChannelSchema),
   metadata: StorageMetadataSchema,
 });
 

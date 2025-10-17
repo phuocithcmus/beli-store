@@ -50,7 +50,9 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportSuccess, setExportSuccess] = useState(false);
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   const exportOptions = [
     {
@@ -110,7 +112,7 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
           break;
 
         case 'transactions':
-          const transactionFilters: any = {};
+          const transactionFilters: Record<string, unknown> = {};
           if (filters.transactionType !== 'all') {
             transactionFilters.type = filters.transactionType;
           }

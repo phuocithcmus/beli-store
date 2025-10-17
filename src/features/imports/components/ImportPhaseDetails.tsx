@@ -19,10 +19,15 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import type { ImportPhase, Product } from '@/types';
+import type { ImportPhase, Product, ProductVariant } from '@/types';
 
 interface ImportPhaseWithProducts extends ImportPhase {
-  products?: (Product & { quantity: number; unitCost: number })[];
+  products?: (Product & {
+    quantity: number;
+    unitCost: number;
+    variant?: ProductVariant;
+    importPhaseProductId: string;
+  })[];
 }
 
 interface ImportPhaseDetailsProps {
@@ -75,10 +80,10 @@ export function ImportPhaseDetails({
     }
   };
 
-  const toggleProductDetails = (productId: string) => {
+  const toggleProductDetails = (productKey: string) => {
     setShowProductDetails((prev) => ({
       ...prev,
-      [productId]: !prev[productId],
+      [productKey]: !prev[productKey],
     }));
   };
 
@@ -240,93 +245,153 @@ export function ImportPhaseDetails({
             </div>
           ) : (
             <div className="space-y-4">
-              {importPhase.products.map((product) => (
-                <div key={product.id} className="rounded-lg border p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-4">
-                        <div>
-                          <h4 className="font-medium">{product.name}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            Code: {product.code}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-medium">
-                            Qty: {product.quantity} × $
-                            {product.unitCost.toFixed(2)}
+              {importPhase.products.map((product) => {
+                const uniqueKey = product.variant
+                  ? `${product.id}-${product.variant.id}`
+                  : product.id;
+
+                return (
+                  <div
+                    key={uniqueKey}
+                    className="rounded-lg border bg-white p-4 shadow-sm"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-medium text-gray-900">
+                                {product.name}
+                              </h4>
+                              {product.variant && (
+                                <Badge variant="outline" className="text-xs">
+                                  {product.variant.color} {product.variant.size}{' '}
+                                  {product.variant.form}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-gray-500">
+                              <span>Code: {product.code}</span>
+                              {product.variant && (
+                                <span>SKU: {product.variant.sku}</span>
+                              )}
+                            </div>
                           </div>
-                          <div className="text-sm text-muted-foreground">
-                            Total: $
-                            {(product.quantity * product.unitCost).toFixed(2)}
+                          <div className="text-right">
+                            <div className="font-medium text-gray-900">
+                              Qty: {product.quantity} × $
+                              {product.unitCost.toFixed(2)}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              Total: $
+                              {(product.quantity * product.unitCost).toFixed(2)}
+                            </div>
                           </div>
                         </div>
+
+                        {showProductDetails[uniqueKey] && (
+                          <div className="mt-4 rounded-lg bg-gray-50 p-4">
+                            <div className="grid grid-cols-2 gap-4 text-sm md:grid-cols-4">
+                              <div>
+                                <span className="font-medium text-gray-700">
+                                  Category:
+                                </span>
+                                <div className="text-gray-600">
+                                  {product.category}
+                                </div>
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-700">
+                                  Stock:
+                                </span>
+                                <div className="text-gray-600">
+                                  {product.variant
+                                    ? `${product.variant.inventoryCount - product.variant.reservedCount - product.variant.soldCount}`
+                                    : product.remainingQuantity}
+                                </div>
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-700">
+                                  Selling Price:
+                                </span>
+                                <div className="text-gray-600">
+                                  $
+                                  {(
+                                    product.variant?.sellingPrice ||
+                                    product.sellingPrice
+                                  ).toFixed(2)}
+                                </div>
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-700">
+                                  Added:
+                                </span>
+                                <div className="text-gray-600">
+                                  {product.createdAt.toLocaleDateString()}
+                                </div>
+                              </div>
+                            </div>
+                            {product.variant && (
+                              <div className="mt-3 border-t border-gray-200 pt-3">
+                                <div className="text-sm">
+                                  <span className="font-medium text-gray-700">
+                                    Variant Details:
+                                  </span>
+                                  <div className="mt-1 flex gap-2">
+                                    <Badge variant="secondary">
+                                      {product.variant.color}
+                                    </Badge>
+                                    <Badge variant="secondary">
+                                      {product.variant.size}
+                                    </Badge>
+                                    <Badge variant="secondary">
+                                      {product.variant.form}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
 
-                      {showProductDetails[product.id] && (
-                        <div className="mt-4 grid grid-cols-2 gap-4 text-sm md:grid-cols-4">
-                          <div>
-                            <span className="font-medium">Category:</span>
-                            <div className="text-muted-foreground">
-                              {product.category}
-                            </div>
-                          </div>
-                          <div>
-                            <span className="font-medium">Stock:</span>
-                            <div className="text-muted-foreground">
-                              {product.remainingQuantity}
-                            </div>
-                          </div>
-                          <div>
-                            <span className="font-medium">Price:</span>
-                            <div className="text-muted-foreground">
-                              ${product.sellingPrice.toFixed(2)}
-                            </div>
-                          </div>
-                          <div>
-                            <span className="font-medium">Added:</span>
-                            <div className="text-muted-foreground">
-                              {product.createdAt.toLocaleDateString()}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="ml-4 flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggleProductDetails(product.id)}
-                      >
-                        {showProductDetails[product.id] ? 'Hide' : 'Show'}{' '}
-                        Details
-                      </Button>
-
-                      {onEditProduct && (
+                      <div className="ml-4 flex items-center gap-2">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => onEditProduct(product.id)}
+                          onClick={() => toggleProductDetails(uniqueKey)}
                         >
-                          <Edit2 className="h-4 w-4" />
+                          {showProductDetails[uniqueKey] ? 'Hide' : 'Show'}{' '}
+                          Details
                         </Button>
-                      )}
 
-                      {importPhase.status === 'active' && onRemoveProduct && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveProduct(product.id)}
-                          className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
+                        {onEditProduct && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onEditProduct(product.id)}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                        )}
+
+                        {importPhase.status === 'active' && onRemoveProduct && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              handleRemoveProduct(product.importPhaseProductId)
+                            }
+                            className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

@@ -14,7 +14,6 @@ import {
   Calendar,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 
 interface RevenueCardProps {
   title: string;
@@ -62,7 +61,9 @@ export function RevenueCard({
   };
 
   const formatValue = () => {
-    if (isLoading) return '---';
+    if (isLoading) {
+      return '---';
+    }
 
     if (type === 'revenue' || type === 'profit') {
       const numValue =
@@ -84,7 +85,9 @@ export function RevenueCard({
   };
 
   const renderChangeIndicator = () => {
-    if (change === undefined) return null;
+    if (change === undefined) {
+      return null;
+    }
 
     const isPositive = change >= 0;
     const Icon = isPositive ? TrendingUp : TrendingDown;

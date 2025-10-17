@@ -1,6 +1,6 @@
 /**
  * ProductDialog Component
- * Modal dialog for adding and editing products
+ * T025 [US1] - Enhanced modal dialog for adding and editing products with variant management
  */
 
 'use client';
@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ProductForm } from './ProductForm';
+import VariantManager from './VariantManager';
 import { storageService } from '@/lib/storage';
 import type { Product } from '@/types';
 
@@ -41,6 +42,9 @@ export function ProductDialog({
 }: ProductDialogProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [variantCount, setVariantCount] = useState(0);
+
+  const isEditing = Boolean(product);
 
   const handleSubmit = async (data: ProductFormData) => {
     setLoading(true);
@@ -91,10 +95,15 @@ export function ProductDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-6xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
             {product ? 'Edit Product' : 'Add New Product'}
+            {isEditing && variantCount > 0 && (
+              <span className="text-sm font-normal text-muted-foreground">
+                ({variantCount} variant{variantCount !== 1 ? 's' : ''})
+              </span>
+            )}
           </DialogTitle>
         </DialogHeader>
 
@@ -106,12 +115,31 @@ export function ProductDialog({
           </div>
         )}
 
-        <ProductForm
-          product={product}
-          onSubmit={handleSubmit}
-          onCancel={handleClose}
-          loading={loading}
-        />
+        <div className="space-y-6">
+          {/* Product Form */}
+          <div>
+            <h3 className="mb-4 text-lg font-semibold">Product Information</h3>
+            <ProductForm
+              product={product}
+              onSubmit={handleSubmit}
+              onCancel={handleClose}
+              loading={loading}
+            />
+          </div>
+
+          {/* Variant Management - Only for existing products */}
+          {isEditing && product && (
+            <>
+              <div className="border-t pt-6">
+                <VariantManager
+                  productId={product.id}
+                  onVariantCountChange={setVariantCount}
+                  className="mt-4"
+                />
+              </div>
+            </>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

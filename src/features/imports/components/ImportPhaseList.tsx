@@ -63,13 +63,17 @@ export function ImportPhaseList({
     // Date range filters
     if (filters.dateFrom) {
       const fromDate = new Date(filters.dateFrom);
-      if (phase.date < fromDate) return false;
+      if (phase.date < fromDate) {
+        return false;
+      }
     }
 
     if (filters.dateTo) {
       const toDate = new Date(filters.dateTo);
       toDate.setHours(23, 59, 59, 999); // Include the entire day
-      if (phase.date > toDate) return false;
+      if (phase.date > toDate) {
+        return false;
+      }
     }
 
     return true;

@@ -36,13 +36,17 @@ export function calculateProfitMargin(
   sellingPrice: number,
   purchasePrice: number
 ): number {
-  if (purchasePrice === 0) return 0;
+  if (purchasePrice === 0) {
+    return 0;
+  }
   return ((sellingPrice - purchasePrice) / sellingPrice) * 100;
 }
 
 export function truncateText(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength) + '...';
+  if (text.length <= maxLength) {
+    return text;
+  }
+  return `${text.substring(0, maxLength)}...`;
 }
 
 export function debounce<T extends (...args: any[]) => any>(

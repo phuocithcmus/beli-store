@@ -3,10 +3,20 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Package, Upload, TrendingUp, Download, Menu } from 'lucide-react';
+import {
+  Package,
+  Upload,
+  TrendingUp,
+  Download,
+  Menu,
+  Boxes,
+  BarChart,
+} from 'lucide-react';
 
 const navigation = [
   { name: 'Products', href: '/products', icon: Package },
+  { name: 'Variants', href: '/variants', icon: Boxes },
+  { name: 'Sales Analytics', href: '/analytics/sales', icon: BarChart },
   { name: 'Imports', href: '/imports', icon: Upload },
   { name: 'Revenue', href: '/revenue', icon: TrendingUp },
   { name: 'Export', href: '/export', icon: Download },

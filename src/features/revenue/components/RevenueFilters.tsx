@@ -45,7 +45,9 @@ export function RevenueFilters({
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const formatDateForInput = (date: Date | null) => {
-    if (!date) return '';
+    if (!date) {
+      return '';
+    }
     return date.toISOString().split('T')[0];
   };
 

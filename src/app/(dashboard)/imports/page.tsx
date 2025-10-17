@@ -7,8 +7,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus } from 'lucide-react';
+import { Plus, Package, TrendingUp, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { ImportPhaseList } from '@/features/imports/components/ImportPhaseList';
 import { ImportPhaseForm } from '@/features/imports/components/ImportPhaseForm';
 import { AddProductsDialog } from '@/features/imports/components/AddProductsDialog';
@@ -35,8 +41,9 @@ export default function ImportsPage() {
       setLoading(true);
       const [phasesData, productsData] = await Promise.all([
         storageService.getImportPhases(),
-        storageService.getProducts(),
+        storageService.getProductsWithVariants(),
       ]);
+
       setImportPhases(phasesData);
       setProducts(productsData);
     } catch (error) {
@@ -121,7 +128,12 @@ export default function ImportsPage() {
 
   const handleAddProductsToPhase = async (
     phaseId: string,
-    selections: Array<{ productId: string; quantity: number; unitCost: number }>
+    selections: {
+      productId: string;
+      productVariantId?: string;
+      quantity: number;
+      unitCost: number;
+    }[]
   ) => {
     try {
       for (const selection of selections) {
@@ -148,41 +160,79 @@ export default function ImportsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Import Management</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Import Management
+          </h1>
           <p className="text-muted-foreground">
-            Manage import phases and track inventory acquisitions
+            Manage import phases and track inventory acquisitions with product
+            variants
           </p>
         </div>
 
-        <Button onClick={() => setShowNewPhaseForm(true)}>
+        <Button
+          onClick={() => setShowNewPhaseForm(true)}
+          className="bg-blue-600 hover:bg-blue-700"
+        >
           <Plus className="mr-2 h-4 w-4" />
           New Import Phase
         </Button>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="rounded-lg border bg-card p-6">
-          <div className="text-2xl font-bold">{importPhases.length}</div>
-          <div className="text-sm text-muted-foreground">Total Phases</div>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="rounded-xl border bg-gradient-to-r from-blue-50 to-indigo-50 p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-2xl font-bold text-blue-900">
+                {importPhases.length}
+              </div>
+              <div className="text-sm font-medium text-blue-700">
+                Total Phases
+              </div>
+            </div>
+            <div className="rounded-full bg-blue-200 p-3">
+              <Package className="h-6 w-6 text-blue-600" />
+            </div>
+          </div>
         </div>
 
-        <div className="rounded-lg border bg-card p-6">
-          <div className="text-2xl font-bold">
-            {importPhases.filter((p) => p.status === 'active').length}
+        <div className="rounded-xl border bg-gradient-to-r from-green-50 to-emerald-50 p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-2xl font-bold text-green-900">
+                {importPhases.filter((p) => p.status === 'active').length}
+              </div>
+              <div className="text-sm font-medium text-green-700">
+                Active Phases
+              </div>
+            </div>
+            <div className="rounded-full bg-green-200 p-3">
+              <TrendingUp className="h-6 w-6 text-green-600" />
+            </div>
           </div>
-          <div className="text-sm text-muted-foreground">Active Phases</div>
         </div>
 
-        <div className="rounded-lg border bg-card p-6">
-          <div className="text-2xl font-bold">
-            ${importPhases.reduce((sum, p) => sum + p.totalCost, 0).toFixed(2)}
+        <div className="rounded-xl border bg-gradient-to-r from-purple-50 to-pink-50 p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-2xl font-bold text-purple-900">
+                $
+                {importPhases
+                  .reduce((sum, p) => sum + p.totalCost, 0)
+                  .toFixed(2)}
+              </div>
+              <div className="text-sm font-medium text-purple-700">
+                Total Investment
+              </div>
+            </div>
+            <div className="rounded-full bg-purple-200 p-3">
+              <DollarSign className="h-6 w-6 text-purple-600" />
+            </div>
           </div>
-          <div className="text-sm text-muted-foreground">Total Investment</div>
         </div>
       </div>
 
@@ -197,45 +247,47 @@ export default function ImportsPage() {
       />
 
       {/* New Phase Form Dialog */}
-      {showNewPhaseForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setShowNewPhaseForm(false)}
-          />
-          <div className="relative w-full max-w-md rounded-lg bg-white shadow-lg">
-            <div className="p-6">
-              <h2 className="mb-4 text-xl font-semibold">
-                Create New Import Phase
-              </h2>
-              <ImportPhaseForm
-                onSubmit={handleCreatePhase}
-                onCancel={() => setShowNewPhaseForm(false)}
-              />
-            </div>
+      <Dialog
+        open={showNewPhaseForm}
+        onOpenChange={(open) => !open && setShowNewPhaseForm(false)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold text-gray-900">
+              Create New Import Phase
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            <ImportPhaseForm
+              onSubmit={handleCreatePhase}
+              onCancel={() => setShowNewPhaseForm(false)}
+            />
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Phase Form Dialog */}
-      {editingPhase && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setEditingPhase(null)}
-          />
-          <div className="relative w-full max-w-md rounded-lg bg-white shadow-lg">
-            <div className="p-6">
-              <h2 className="mb-4 text-xl font-semibold">Edit Import Phase</h2>
+      <Dialog
+        open={!!editingPhase}
+        onOpenChange={(open) => !open && setEditingPhase(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold text-gray-900">
+              Edit Import Phase
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            {editingPhase && (
               <ImportPhaseForm
                 importPhase={editingPhase}
                 onSubmit={(data) => handleUpdatePhase(editingPhase.id, data)}
                 onCancel={() => setEditingPhase(null)}
               />
-            </div>
+            )}
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Add Products Dialog */}
       {showAddProductsDialog && selectedPhaseForProducts && (

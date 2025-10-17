@@ -1,0 +1,409 @@
+'use client';
+
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  RefreshCw,
+  DollarSign,
+  ShoppingCart,
+  Package,
+  Target,
+} from 'lucide-react';
+import type { RevenueAnalyticsProps } from '@/features/revenue/types/revenue';
+import type {
+  RevenueAnalyticsData,
+  RevenuePeriod,
+} from '@/features/revenue/types/revenue';
+
+// Currency formatter
+const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(amount);
+};
+
+// Number formatter
+const formatNumber = (num: number): string => {
+  return new Intl.NumberFormat('en-US').format(num);
+};
+
+// Percentage formatter
+const formatPercentage = (percentage: number): string => {
+  return `${percentage >= 0 ? '+' : ''}${percentage.toFixed(1)}%`;
+};
+
+// Growth indicator component
+function GrowthIndicator({ growth }: { growth: number }) {
+  if (growth > 0) {
+    return (
+      <div className="flex items-center text-green-600">
+        <TrendingUp className="mr-1 h-4 w-4" />
+        <span className="text-sm font-medium">{formatPercentage(growth)}</span>
+      </div>
+    );
+  } else if (growth < 0) {
+    return (
+      <div className="flex items-center text-red-600">
+        <TrendingDown className="mr-1 h-4 w-4" />
+        <span className="text-sm font-medium">{formatPercentage(growth)}</span>
+      </div>
+    );
+  } else {
+    return (
+      <div className="flex items-center text-gray-500">
+        <Minus className="mr-1 h-4 w-4" />
+        <span className="text-sm font-medium">0.0%</span>
+      </div>
+    );
+  }
+}
+
+/**
+ * Analytics dashboard component for revenue tracking
+ * Displays comprehensive revenue metrics, trends, and performance data
+ */
+export function RevenueAnalytics({
+  data,
+  loading = false,
+  error,
+  period = 'month',
+  onPeriodChange,
+  onRefresh,
+}: RevenueAnalyticsProps & {
+  data: RevenueAnalyticsData | null;
+  loading?: boolean;
+  error?: string | null;
+  period?: RevenuePeriod;
+  onPeriodChange?: (period: RevenuePeriod) => void;
+  onRefresh?: () => void;
+}) {
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center text-red-600">
+            <p>Error loading analytics: {error}</p>
+            {onRefresh && (
+              <Button variant="outline" onClick={onRefresh} className="mt-2">
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Retry
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (loading || !data) {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <div className="animate-pulse">
+                  <div className="mb-2 h-4 w-1/2 rounded bg-gray-200"></div>
+                  <div className="h-8 w-3/4 rounded bg-gray-200"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header Controls */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Revenue Analytics</h2>
+        <div className="flex items-center gap-4">
+          {/* Period Selector */}
+          {onPeriodChange && (
+            <Select
+              value={period}
+              onValueChange={(value) => onPeriodChange(value as RevenuePeriod)}
+            >
+              <SelectTrigger className="w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="week">Week</SelectItem>
+                <SelectItem value="month">Month</SelectItem>
+                <SelectItem value="quarter">Quarter</SelectItem>
+                <SelectItem value="year">Year</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+
+          {/* Refresh Button */}
+          {onRefresh && (
+            <Button variant="outline" size="sm" onClick={onRefresh}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Key Metrics */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">
+                  Total Revenue
+                </p>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(data.totalRevenue)}
+                </p>
+                <GrowthIndicator growth={data.revenueGrowth} />
+              </div>
+              <DollarSign className="h-8 w-8 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">
+                  Total Orders
+                </p>
+                <p className="text-2xl font-bold">
+                  {formatNumber(data.totalOrders)}
+                </p>
+                <GrowthIndicator growth={data.quantityGrowth} />
+              </div>
+              <ShoppingCart className="h-8 w-8 text-blue-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Items Sold</p>
+                <p className="text-2xl font-bold">
+                  {formatNumber(data.totalQuantity)}
+                </p>
+                <GrowthIndicator growth={data.quantityGrowth} />
+              </div>
+              <Package className="h-8 w-8 text-purple-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">
+                  Avg Order Value
+                </p>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(data.averageOrderValue)}
+                </p>
+                <GrowthIndicator growth={data.profitGrowth} />
+              </div>
+              <Target className="h-8 w-8 text-orange-600" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Top Performers */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Top Products */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Products</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {data.topProducts.length === 0 ? (
+                <p className="py-4 text-center text-gray-500">
+                  No product data available
+                </p>
+              ) : (
+                data.topProducts.map((product, index) => (
+                  <div
+                    key={product.productName}
+                    className="flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-600">
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="font-medium">{product.productName}</p>
+                        <p className="text-sm text-gray-500">
+                          {formatNumber(product.quantity)} sold
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium">
+                        {formatCurrency(product.revenue)}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {formatCurrency(product.averagePrice)}/unit
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Top Channels */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Sales Channels</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {data.topChannels.length === 0 ? (
+                <p className="py-4 text-center text-gray-500">
+                  No channel data available
+                </p>
+              ) : (
+                data.topChannels.map((channel, index) => (
+                  <div
+                    key={channel.channelName}
+                    className="flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-xs font-bold text-green-600">
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="font-medium">{channel.channelName}</p>
+                        <p className="text-sm text-gray-500">
+                          {formatNumber(channel.orderCount)} orders
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium">
+                        {formatCurrency(channel.revenue)}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {formatCurrency(channel.averageOrderValue)} AOV
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Channel Performance */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Channel Performance</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {data.channelPerformance.map((channel) => (
+                <div key={channel.id} className="rounded-lg border p-4">
+                  <div className="mb-2 flex items-center justify-between">
+                    <h4 className="font-medium">{channel.name}</h4>
+                    <Badge
+                      variant={
+                        channel.marketShare > 30 ? 'default' : 'secondary'
+                      }
+                    >
+                      {channel.marketShare.toFixed(1)}% share
+                    </Badge>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Revenue:</span>
+                      <span className="font-medium">
+                        {formatCurrency(channel.revenue)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Orders:</span>
+                      <span className="font-medium">
+                        {formatNumber(channel.orders)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">AOV:</span>
+                      <span className="font-medium">
+                        {formatCurrency(channel.averageOrderValue)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Commission:</span>
+                      <span className="font-medium">
+                        {(channel.commissionRate * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Revenue Trends */}
+      {data.trends.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Revenue Trends</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {data.trends.map((trend) => (
+                <div
+                  key={trend.period}
+                  className="flex items-center justify-between rounded border p-3"
+                >
+                  <div>
+                    <p className="font-medium">{trend.period}</p>
+                    <p className="text-sm text-gray-500">
+                      {formatNumber(trend.orders)} orders
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium">
+                      {formatCurrency(trend.revenue)}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {formatNumber(trend.quantity)} items
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

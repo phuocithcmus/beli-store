@@ -27,7 +27,9 @@ export function RevenueTrendChart({
   height = 200,
 }: RevenueTrendChartProps) {
   const chartData = useMemo(() => {
-    if (data.length === 0) return { maxValue: 0, points: [] };
+    if (data.length === 0) {
+      return { maxValue: 0, points: [] };
+    }
 
     const maxRevenue = Math.max(...data.map((d) => d.revenue));
     const maxProfit = Math.max(...data.map((d) => d.profit));
@@ -53,7 +55,9 @@ export function RevenueTrendChart({
     points: typeof chartData.points,
     valueKey: 'revenueY' | 'profitY'
   ) => {
-    if (points.length === 0) return '';
+    if (points.length === 0) {
+      return '';
+    }
 
     const pathPoints = points
       .map((point, index) => {
