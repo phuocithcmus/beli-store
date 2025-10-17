@@ -23,6 +23,7 @@ import type {
   ProductVariant,
 } from '@/types';
 import type { RevenuePeriod } from '@/features/revenue/types/revenue';
+import { formatVND } from '@/lib/currency';
 
 export function RevenueDashboard() {
   const [activeTab, setActiveTab] = useState<
@@ -174,10 +175,7 @@ export function RevenueDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  $
-                  {totalRevenue.toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
-                  })}
+                  {formatVND(totalRevenue)}
                 </div>
               </CardContent>
             </Card>
@@ -212,10 +210,7 @@ export function RevenueDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  $
-                  {averageOrderValue.toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
-                  })}
+                  {formatVND(averageOrderValue)}
                 </div>
               </CardContent>
             </Card>

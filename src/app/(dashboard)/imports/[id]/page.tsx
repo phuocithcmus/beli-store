@@ -11,8 +11,20 @@ import { notFound } from 'next/navigation';
 import { ImportPhaseDetails } from '@/features/imports/components/ImportPhaseDetails';
 import { ImportPhaseForm } from '@/features/imports/components/ImportPhaseForm';
 import { AddProductsDialog } from '@/features/imports/components/AddProductsDialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { storageService } from '@/lib/storage';
-import type { ImportPhase, Product, ProductVariant } from '@/types';
+import type {
+  ImportPhase,
+  ImportFee,
+  ImportFeeFormData,
+  Product,
+  ProductVariant,
+} from '@/types';
 
 interface ImportPhaseWithProducts extends ImportPhase {
   products?: (Product & {
@@ -21,6 +33,7 @@ interface ImportPhaseWithProducts extends ImportPhase {
     variant?: ProductVariant;
     importPhaseProductId: string;
   })[];
+  fees?: ImportFee[];
 }
 
 interface ImportPhasePageProps {
@@ -38,10 +51,6 @@ export default function ImportPhasePage({ params }: ImportPhasePageProps) {
   const [showAddProductsDialog, setShowAddProductsDialog] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadImportPhase();
-  }, [params.id]);
-
   const loadImportPhase = useCallback(async () => {
     try {
       setLoading(true);
@@ -53,8 +62,9 @@ export default function ImportPhasePage({ params }: ImportPhasePageProps) {
         return;
       }
 
-      // Get phase products
+      // Get phase products and fees
       const phaseProducts = storageService.getImportPhaseProducts(params.id);
+      const phaseFees = storageService.getImportFees(params.id);
       const allProducts = storageService.getProductsWithVariants();
 
       // Map phase products to include product and variant details
@@ -92,6 +102,7 @@ export default function ImportPhasePage({ params }: ImportPhasePageProps) {
       setImportPhase({
         ...phase,
         products: productsWithDetails,
+        fees: phaseFees,
       });
 
       setAvailableProducts(allProducts);
@@ -102,6 +113,10 @@ export default function ImportPhasePage({ params }: ImportPhasePageProps) {
       setLoading(false);
     }
   }, [params.id]);
+
+  useEffect(() => {
+    loadImportPhase();
+  }, [loadImportPhase]);
 
   const handleEditPhase = async (data: {
     code: string;
@@ -177,6 +192,52 @@ export default function ImportPhasePage({ params }: ImportPhasePageProps) {
     router.push(`/products/${productId}`);
   };
 
+  // Fee management handlers
+  const handleAddFee = async (feeData: ImportFeeFormData) => {
+    if (!importPhase) {
+      return;
+    }
+
+    try {
+      storageService.saveImportFee({
+        importPhaseId: importPhase.id,
+        type: feeData.type,
+        name: feeData.name,
+        amount: parseFloat(feeData.amount.replace(/,/g, '')),
+        description: feeData.description,
+      });
+      await loadImportPhase(); // Reload to get updated data
+    } catch (error) {
+      console.error('Failed to add fee:', error);
+      throw error;
+    }
+  };
+
+  const handleUpdateFee = async (feeId: string, feeData: ImportFeeFormData) => {
+    try {
+      storageService.updateImportFee(feeId, {
+        type: feeData.type,
+        name: feeData.name,
+        amount: parseFloat(feeData.amount.replace(/,/g, '')),
+        description: feeData.description,
+      });
+      await loadImportPhase(); // Reload to get updated data
+    } catch (error) {
+      console.error('Failed to update fee:', error);
+      throw error;
+    }
+  };
+
+  const handleDeleteFee = async (feeId: string) => {
+    try {
+      storageService.deleteImportFee(feeId);
+      await loadImportPhase(); // Reload to get updated data
+    } catch (error) {
+      console.error('Failed to delete fee:', error);
+      throw error;
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -194,7 +255,7 @@ export default function ImportPhasePage({ params }: ImportPhasePageProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <ImportPhaseDetails
         importPhase={importPhase}
         onBack={() => router.push('/imports')}
@@ -203,27 +264,25 @@ export default function ImportPhasePage({ params }: ImportPhasePageProps) {
         onAddProducts={() => setShowAddProductsDialog(true)}
         onEditProduct={handleEditProduct}
         onRemoveProduct={handleRemoveProduct}
+        onAddFee={handleAddFee}
+        onUpdateFee={handleUpdateFee}
+        onDeleteFee={handleDeleteFee}
+        loading={loading}
       />
 
       {/* Edit Phase Form Dialog */}
-      {showEditForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setShowEditForm(false)}
+      <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Import Phase</DialogTitle>
+          </DialogHeader>
+          <ImportPhaseForm
+            importPhase={importPhase}
+            onSubmit={handleEditPhase}
+            onCancel={() => setShowEditForm(false)}
           />
-          <div className="relative w-full max-w-md rounded-lg bg-white shadow-lg">
-            <div className="p-6">
-              <h2 className="mb-4 text-xl font-semibold">Edit Import Phase</h2>
-              <ImportPhaseForm
-                importPhase={importPhase}
-                onSubmit={handleEditPhase}
-                onCancel={() => setShowEditForm(false)}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Add Products Dialog */}
       <AddProductsDialog

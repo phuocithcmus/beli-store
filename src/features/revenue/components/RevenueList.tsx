@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Edit2, Trash2, Eye, Search, Filter } from 'lucide-react';
 import type { RevenueListProps } from '@/features/revenue/types/revenue';
+import { formatVND } from '@/lib/currency';
 
 // Simple date formatter
 const formatDate = (date: Date): string => {
@@ -169,9 +170,7 @@ export function RevenueList({
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(totalRevenue)}
-            </div>
+            <div className="text-2xl font-bold">{formatVND(totalRevenue)}</div>
           </CardContent>
         </Card>
 

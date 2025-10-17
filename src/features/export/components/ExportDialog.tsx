@@ -1,15 +1,21 @@
 /**
  * ExportDialog Component
  * Modal dialog for data export functionality with format and filter options
+ * Updated to use proper Dialog component and VND currency
  */
 
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   DownloadIcon,
   FileTextIcon,
@@ -207,15 +213,15 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <Card className="max-h-[90vh] w-full max-w-2xl overflow-y-auto">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[90vh] w-full max-w-2xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
             <DownloadIcon className="h-5 w-5" />
             Export Data
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-6">
           {exportSuccess ? (
             <div className="py-8 text-center">
               <CheckIcon className="mx-auto mb-4 h-16 w-16 text-green-500" />
@@ -427,8 +433,8 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
               </div>
             </>
           )}
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

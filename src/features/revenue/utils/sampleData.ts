@@ -23,7 +23,8 @@ export function createSampleProducts() {
       category: 'shirt',
       remainingQuantity: 100,
       soldQuantity: 0,
-      description: 'Classic cotton t-shirt available in multiple variants',
+      purchasePrice: 15.0,
+      // sellingPrice not set - demonstrating P3 cost-only tracking
       hasVariants: true,
     });
 
@@ -33,7 +34,8 @@ export function createSampleProducts() {
       category: 'pants',
       remainingQuantity: 50,
       soldQuantity: 0,
-      description: 'Premium denim jeans with perfect fit',
+      purchasePrice: 25.0,
+      sellingPrice: 59.99,
       hasVariants: true,
     });
 
@@ -80,7 +82,7 @@ export function createSampleProducts() {
       productId: jeans.id,
       sku: 'PNT001-DARK-32',
       color: 'Dark Blue',
-      size: '32',
+      size: 'M',
       form: 'fit',
       inventoryCount: 15,
       soldCount: 0,
@@ -91,7 +93,7 @@ export function createSampleProducts() {
       productId: jeans.id,
       sku: 'PNT001-LIGHT-34',
       color: 'Light Blue',
-      size: '34',
+      size: 'L',
       form: 'oversized',
       inventoryCount: 18,
       soldCount: 0,

@@ -9,6 +9,7 @@ import React, { useState } from 'react';
 import { VariantAnalytics } from '@/features/products/components/VariantAnalytics';
 import { SalesPerformanceReporting } from '@/lib/integration/salesPerformanceIntegration';
 import { useAllVariantSales } from '@/features/products/hooks/useVariantSales';
+import { formatVND } from '@/lib/currency';
 import {
   Card,
   CardContent,
@@ -72,7 +73,7 @@ export default function SalesAnalyticsPage() {
               <div>
                 <p className="text-sm font-medium">Total Revenue</p>
                 <p className="text-2xl font-bold">
-                  ${performanceReport.totalRevenue.toFixed(2)}
+                  {formatVND(performanceReport.totalRevenue)}
                 </p>
               </div>
             </div>
@@ -205,7 +206,7 @@ export default function SalesAnalyticsPage() {
                         </div>
                         <div className="text-right">
                           <p className="font-bold">
-                            ${report.salesSummary.totalRevenue.toFixed(2)}
+                            {formatVND(report.salesSummary.totalRevenue)}
                           </p>
                           <p className="text-sm text-gray-600">
                             {report.salesSummary.totalSold} units sold
@@ -257,7 +258,7 @@ export default function SalesAnalyticsPage() {
                         </div>
                         <div className="text-right">
                           <p className="font-bold">
-                            ${report.salesSummary.totalRevenue.toFixed(2)}
+                            {formatVND(report.salesSummary.totalRevenue)}
                           </p>
                           <p className="text-sm text-gray-600">
                             Turnover:{' '}
@@ -313,8 +314,7 @@ export default function SalesAnalyticsPage() {
                             %
                           </p>
                           <p className="text-sm text-gray-600">
-                            $
-                            {report.profitabilityMetrics.grossProfit.toFixed(2)}{' '}
+                            {formatVND(report.profitabilityMetrics.grossProfit)}{' '}
                             profit
                           </p>
                         </div>
@@ -391,8 +391,8 @@ export default function SalesAnalyticsPage() {
                       Revenue Performance
                     </h4>
                     <p className="mt-1 text-sm text-blue-700">
-                      Total revenue of $
-                      {performanceReport.totalRevenue.toFixed(2)} across{' '}
+                      Total revenue of{' '}
+                      {formatVND(performanceReport.totalRevenue)} across{' '}
                       {performanceReport.totalVariants} variants
                     </p>
                   </div>

@@ -11,6 +11,7 @@ import {
   Menu,
   Boxes,
   BarChart,
+  Calculator,
 } from 'lucide-react';
 
 const navigation = [
@@ -19,6 +20,7 @@ const navigation = [
   { name: 'Sales Analytics', href: '/analytics/sales', icon: BarChart },
   { name: 'Imports', href: '/imports', icon: Upload },
   { name: 'Revenue', href: '/revenue', icon: TrendingUp },
+  { name: 'Fees', href: '/fees', icon: Calculator },
   { name: 'Export', href: '/export', icon: Download },
 ];
 

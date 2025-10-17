@@ -19,7 +19,15 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import type { ImportPhase, Product, ProductVariant } from '@/types';
+import { ImportFeeList } from './ImportFeeList';
+import { formatVND } from '@/lib/currency';
+import type {
+  ImportPhase,
+  ImportFee,
+  ImportFeeFormData,
+  Product,
+  ProductVariant,
+} from '@/types';
 
 interface ImportPhaseWithProducts extends ImportPhase {
   products?: (Product & {
@@ -28,6 +36,7 @@ interface ImportPhaseWithProducts extends ImportPhase {
     variant?: ProductVariant;
     importPhaseProductId: string;
   })[];
+  fees?: ImportFee[];
 }
 
 interface ImportPhaseDetailsProps {
@@ -38,6 +47,11 @@ interface ImportPhaseDetailsProps {
   onAddProducts?: (phase: ImportPhase) => void;
   onEditProduct?: (productId: string) => void;
   onRemoveProduct?: (phaseId: string, productId: string) => void;
+  // Fee management callbacks
+  onAddFee?: (feeData: ImportFeeFormData) => void;
+  onUpdateFee?: (feeId: string, feeData: ImportFeeFormData) => void;
+  onDeleteFee?: (feeId: string) => void;
+  loading?: boolean;
 }
 
 export function ImportPhaseDetails({
@@ -48,6 +62,10 @@ export function ImportPhaseDetails({
   onAddProducts,
   onEditProduct,
   onRemoveProduct,
+  onAddFee,
+  onUpdateFee,
+  onDeleteFee,
+  loading = false,
 }: ImportPhaseDetailsProps) {
   const [showProductDetails, setShowProductDetails] = useState<
     Record<string, boolean>
@@ -88,7 +106,7 @@ export function ImportPhaseDetails({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -188,10 +206,16 @@ export function ImportPhaseDetails({
           </CardHeader>
           <CardContent>
             <div className="font-mono text-2xl font-bold">
-              ${importPhase.totalCost.toFixed(2)}
+              {formatVND(importPhase.finalCost || importPhase.totalCost)}
             </div>
-            <div className="text-sm text-muted-foreground">
-              {importPhase.totalItems} items
+            <div className="space-y-1 text-sm text-muted-foreground">
+              <div>
+                Products: {formatVND(importPhase.totalCost)} (
+                {importPhase.totalItems} items)
+              </div>
+              {(importPhase.totalFees || 0) > 0 && (
+                <div>Fees: {formatVND(importPhase.totalFees || 0)}</div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -208,6 +232,17 @@ export function ImportPhaseDetails({
           </CardContent>
         </Card>
       )}
+
+      {/* Import Fees */}
+      <ImportFeeList
+        importPhaseId={importPhase.id}
+        fees={importPhase.fees || []}
+        canEdit={importPhase.status === 'active'}
+        onAddFee={onAddFee}
+        onUpdateFee={onUpdateFee}
+        onDeleteFee={onDeleteFee}
+        loading={loading}
+      />
 
       {/* Products */}
       <Card>
@@ -279,12 +314,12 @@ export function ImportPhaseDetails({
                           </div>
                           <div className="text-right">
                             <div className="font-medium text-gray-900">
-                              Qty: {product.quantity} × $
-                              {product.unitCost.toFixed(2)}
+                              Qty: {product.quantity} ×{' '}
+                              {formatVND(product.unitCost)}
                             </div>
                             <div className="text-sm text-gray-500">
-                              Total: $
-                              {(product.quantity * product.unitCost).toFixed(2)}
+                              Total:{' '}
+                              {formatVND(product.quantity * product.unitCost)}
                             </div>
                           </div>
                         </div>
@@ -315,11 +350,14 @@ export function ImportPhaseDetails({
                                   Selling Price:
                                 </span>
                                 <div className="text-gray-600">
-                                  $
-                                  {(
-                                    product.variant?.sellingPrice ||
-                                    product.sellingPrice
-                                  ).toFixed(2)}
+                                  {product.variant?.sellingPrice ||
+                                  product.sellingPrice
+                                    ? formatVND(
+                                        product.variant?.sellingPrice ||
+                                          product.sellingPrice ||
+                                          0
+                                      )
+                                    : 'No price set'}
                                 </div>
                               </div>
                               <div>

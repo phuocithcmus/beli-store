@@ -11,6 +11,7 @@ import type {
   ApiResponse,
   Transaction,
 } from '@/types';
+import { storageService } from './index';
 
 export class RevenueService {
   private storageKey = 'clothing-store-data';
@@ -27,6 +28,8 @@ export class RevenueService {
         productVariants: [],
         revenueEntries: [],
         salesChannels: [],
+        importFees: [],
+        channelFeeStructures: [],
         metadata: {
           version: '1.0.0',
           lastBackup: new Date(),
@@ -37,6 +40,8 @@ export class RevenueService {
           },
           schemaVersion: 2,
           variantSystemEnabled: true,
+          feeSystemEnabled: true,
+          channelFeeSystemEnabled: true,
         },
       };
     }
@@ -103,6 +108,8 @@ export class RevenueService {
           metadata: { platform: 'direct', commission: 0 },
         },
       ],
+      importFees: [],
+      channelFeeStructures: [],
       metadata: {
         version: '1.0.0',
         lastBackup: new Date(),
@@ -113,6 +120,8 @@ export class RevenueService {
         },
         schemaVersion: 2,
         variantSystemEnabled: true,
+        feeSystemEnabled: true,
+        channelFeeSystemEnabled: true,
       },
     };
   }
@@ -155,6 +164,15 @@ export class RevenueService {
       }
 
       const now = new Date();
+      const grossAmount = parseFloat(entryData.amount);
+
+      // P2 Integration: Calculate channel fee using storage service
+      const channelFee = storageService.calculateChannelFee(
+        entryData.salesChannel,
+        grossAmount
+      );
+      const netAmount = grossAmount - channelFee;
+
       const newEntry: RevenueEntry = {
         id: this.generateId(),
         productId: entryData.productId,
@@ -163,13 +181,16 @@ export class RevenueService {
         variantDetails: entryData.productVariantId
           ? this.getVariantDisplayName(data, entryData.productVariantId)
           : undefined,
-        amount: parseFloat(entryData.amount),
+        amount: grossAmount, // Gross revenue amount
         quantity: parseInt(entryData.quantity),
-        unitPrice: parseFloat(entryData.amount) / parseInt(entryData.quantity),
+        unitPrice: grossAmount / parseInt(entryData.quantity),
         salesChannel: entryData.salesChannel,
         salesChannelName: salesChannel.name,
         saleDate: new Date(entryData.saleDate),
         notes: entryData.notes,
+        // P2 Channel Fee Integration
+        channelFee: channelFee > 0 ? channelFee : undefined,
+        netAmount: channelFee > 0 ? netAmount : undefined,
         createdAt: now,
         updatedAt: now,
       };
@@ -361,6 +382,17 @@ export class RevenueService {
         currentEntry.notes = updates.notes;
       }
 
+      // P2 Integration: Recalculate channel fees if amount or sales channel changed
+      if (updates.amount || updates.salesChannel) {
+        const channelFee = storageService.calculateChannelFee(
+          currentEntry.salesChannel,
+          currentEntry.amount
+        );
+        currentEntry.channelFee = channelFee > 0 ? channelFee : undefined;
+        currentEntry.netAmount =
+          channelFee > 0 ? currentEntry.amount - channelFee : undefined;
+      }
+
       currentEntry.updatedAt = new Date();
 
       this.saveData(data);
@@ -439,8 +471,11 @@ export class RevenueService {
     string,
     {
       totalRevenue: number;
+      totalNetRevenue: number;
+      totalFees: number;
       totalTransactions: number;
       averageOrderValue: number;
+      averageNetOrderValue: number;
       channelName: string;
     }
   > {
@@ -461,8 +496,11 @@ export class RevenueService {
         string,
         {
           totalRevenue: number;
+          totalNetRevenue: number;
+          totalFees: number;
           totalTransactions: number;
           averageOrderValue: number;
+          averageNetOrderValue: number;
           channelName: string;
         }
       > = {};
@@ -471,13 +509,21 @@ export class RevenueService {
         if (!summary[entry.salesChannel]) {
           summary[entry.salesChannel] = {
             totalRevenue: 0,
+            totalNetRevenue: 0,
+            totalFees: 0,
             totalTransactions: 0,
             averageOrderValue: 0,
+            averageNetOrderValue: 0,
             channelName: entry.salesChannelName,
           };
         }
 
+        const netAmount = entry.netAmount || entry.amount; // Use netAmount if available, fallback to gross
+        const channelFee = entry.channelFee || 0;
+
         summary[entry.salesChannel].totalRevenue += entry.amount;
+        summary[entry.salesChannel].totalNetRevenue += netAmount;
+        summary[entry.salesChannel].totalFees += channelFee;
         summary[entry.salesChannel].totalTransactions += 1;
       });
 
@@ -487,6 +533,10 @@ export class RevenueService {
         channel.averageOrderValue =
           channel.totalTransactions > 0
             ? channel.totalRevenue / channel.totalTransactions
+            : 0;
+        channel.averageNetOrderValue =
+          channel.totalTransactions > 0
+            ? channel.totalNetRevenue / channel.totalTransactions
             : 0;
       });
 

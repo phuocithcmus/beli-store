@@ -25,6 +25,7 @@ import {
   DollarSign,
   TrendingUp,
 } from 'lucide-react';
+import { formatVND } from '@/lib/currency';
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -85,14 +86,14 @@ export default function ProductsPage() {
     (p) => p.remainingQuantity <= 10
   ).length;
   const totalValue = products.reduce(
-    (sum, p) => sum + p.remainingQuantity * p.sellingPrice,
+    (sum, p) => sum + p.remainingQuantity * (p.sellingPrice || 0), // P3: Handle optional selling price
     0
   );
   const totalVariantValue = variants.reduce((sum, v) => {
     const availableCount = v.inventoryCount - v.reservedCount - v.soldCount;
     // Estimate variant value based on parent product selling price
     const product = products.find((p) => p.id === v.productId);
-    const productValue = product ? product.sellingPrice : 0;
+    const productValue = product ? product.sellingPrice || 0 : 0; // P3: Handle optional selling price
     return sum + availableCount * productValue;
   }, 0);
 
@@ -225,10 +226,10 @@ export default function ProductsPage() {
               </div>
               <div>
                 <p className="text-sm font-medium">Inventory Value</p>
-                <p className="text-xl font-bold">${totalValue.toFixed(0)}</p>
+                <p className="text-xl font-bold">{formatVND(totalValue)}</p>
                 {totalVariantValue > 0 && (
                   <p className="text-xs text-muted-foreground">
-                    +${totalVariantValue.toFixed(0)} variants
+                    +{formatVND(totalVariantValue)} variants
                   </p>
                 )}
               </div>

@@ -1,6 +1,7 @@
 /**
  * Sales Dialog Component
  * Dialog for recording sales transactions for product variants
+ * Updated to use proper Dialog component and VND currency
  */
 
 'use client';
@@ -9,6 +10,16 @@ import React, { useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useCurrency } from '@/hooks/useCurrency';
 import type { ProductVariant, SaleTransaction } from '@/types';
 import {
   calculateAvailableInventory,
@@ -42,10 +53,11 @@ export function SalesDialog({
   onSaleRecorded,
   variants,
   selectedVariantId,
-  className,
+  className: _className, // eslint-disable-line @typescript-eslint/no-unused-vars
 }: SalesDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { formatCurrency } = useCurrency();
 
   const {
     register,
@@ -140,45 +152,15 @@ export function SalesDialog({
     onClose();
   }, [reset, onClose]);
 
-  if (!isOpen) {
-    return null;
-  }
-
   return (
-    <div
-      className={`fixed inset-0 z-50 flex items-center justify-center ${className || ''}`}
-    >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50" onClick={handleClose} />
-
-      {/* Dialog */}
-      <div className="relative mx-4 max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white shadow-xl">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b p-6">
-          <h2 className="text-lg font-semibold">Record Sale</h2>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600"
-            disabled={isSubmitting}
-          >
-            <svg
-              className="h-6 w-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent className="max-h-[90vh] w-full max-w-md overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Record Sale</DialogTitle>
+        </DialogHeader>
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 p-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Error Message */}
           {error && (
             <div className="rounded-md border border-red-200 bg-red-50 p-3">
@@ -205,12 +187,7 @@ export function SalesDialog({
 
           {/* Variant Selection */}
           <div>
-            <label
-              htmlFor="variantId"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Product Variant *
-            </label>
+            <Label htmlFor="variantId">Product Variant *</Label>
             <select
               {...register('variantId')}
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -254,8 +231,8 @@ export function SalesDialog({
               </div>
               {selectedVariant.sellingPrice && (
                 <div className="mt-2">
-                  <span className="font-medium">Suggested Price:</span> $
-                  {selectedVariant.sellingPrice.toFixed(2)}
+                  <span className="font-medium">Suggested Price:</span>{' '}
+                  {formatCurrency(selectedVariant.sellingPrice)}
                 </div>
               )}
             </div>
@@ -263,13 +240,8 @@ export function SalesDialog({
 
           {/* Quantity */}
           <div>
-            <label
-              htmlFor="quantity"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Quantity *
-            </label>
-            <input
+            <Label htmlFor="quantity">Quantity *</Label>
+            <Input
               {...register('quantity', { valueAsNumber: true })}
               type="number"
               min="1"
@@ -278,7 +250,6 @@ export function SalesDialog({
                   ? calculateAvailableInventory(selectedVariant)
                   : undefined
               }
-              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={isSubmitting}
             />
             {errors.quantity && (
@@ -295,18 +266,13 @@ export function SalesDialog({
 
           {/* Unit Price */}
           <div>
-            <label
-              htmlFor="unitPrice"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Unit Price *
-            </label>
-            <input
+            <Label htmlFor="unitPrice">Unit Price *</Label>
+            <Input
               {...register('unitPrice', { valueAsNumber: true })}
               type="number"
-              step="0.01"
-              min="0.01"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              step="1000"
+              min="1000"
+              placeholder="Enter price in VND"
               disabled={isSubmitting}
             />
             {errors.unitPrice && (
@@ -320,23 +286,17 @@ export function SalesDialog({
           {totalAmount > 0 && (
             <div className="rounded-md bg-blue-50 p-3">
               <div className="text-sm font-medium text-blue-800">
-                Total Amount: ${totalAmount.toFixed(2)}
+                Total Amount: {formatCurrency(totalAmount)}
               </div>
             </div>
           )}
 
           {/* Sale Date */}
           <div>
-            <label
-              htmlFor="saleDate"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Sale Date *
-            </label>
-            <input
+            <Label htmlFor="saleDate">Sale Date *</Label>
+            <Input
               {...register('saleDate')}
               type="date"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={isSubmitting}
             />
             {errors.saleDate && (
@@ -348,51 +308,37 @@ export function SalesDialog({
 
           {/* Customer ID */}
           <div>
-            <label
-              htmlFor="customerId"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Customer ID
-            </label>
-            <input
+            <Label htmlFor="customerId">Customer ID</Label>
+            <Input
               {...register('customerId')}
               type="text"
               placeholder="Optional customer identifier"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={isSubmitting}
             />
           </div>
 
           {/* Notes */}
           <div>
-            <label
-              htmlFor="notes"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Notes
-            </label>
-            <textarea
+            <Label htmlFor="notes">Notes</Label>
+            <Input
               {...register('notes')}
-              rows={3}
               placeholder="Optional sale notes..."
-              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={isSubmitting}
             />
           </div>
 
           {/* Actions */}
           <div className="flex justify-end space-x-3 pt-4">
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={handleClose}
-              className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
               disabled={isSubmitting}
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              className="rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
               disabled={
                 isSubmitting ||
                 (availabilityInfo
@@ -401,10 +347,10 @@ export function SalesDialog({
               }
             >
               {isSubmitting ? 'Recording...' : 'Record Sale'}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

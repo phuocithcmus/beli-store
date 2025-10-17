@@ -75,6 +75,20 @@ export function useRevenueAnalytics(
       // Calculate profit (simplified - assuming 30% margin)
       const totalProfit = totalRevenue * 0.3;
 
+      // P2 Integration: Calculate net revenue metrics from entries
+      const totalChannelFees = entries.reduce(
+        (sum, entry) => sum + (entry.channelFee || 0),
+        0
+      );
+      const totalNetRevenue = entries.reduce(
+        (sum, entry) => sum + (entry.netAmount || entry.amount),
+        0
+      );
+      const averageNetOrderValue =
+        totalOrders > 0 ? totalNetRevenue / totalOrders : 0;
+      const averageFeePerOrder =
+        totalOrders > 0 ? totalChannelFees / totalOrders : 0;
+
       // Calculate growth metrics (compare with previous period)
       const previousStart = new Date(dateRange.start);
       const previousEnd = new Date(dateRange.end);
@@ -151,25 +165,39 @@ export function useRevenueAnalytics(
         .sort((a: any, b: any) => b.revenue - a.revenue)
         .slice(0, 5);
 
-      // Calculate channel performance metrics
+      // Calculate channel performance metrics with P2 fee integration
       const channelPerformance = channels.map((channel: any) => {
         const channelData = revenueByChannel.find(
           (rc: any) => rc.channelName === channel.name
         );
+
         const channelRevenue = channelData?.revenue || 0;
+        const channelNetRevenue = channelData?.netRevenue || channelRevenue;
+        const channelTotalFees = channelData?.totalFees || 0;
         const channelOrders = channelData?.transactions || 0;
+        const channelMarketShare = channelData?.marketShare || 0;
+        const channelNetMarketShare =
+          channelData?.netMarketShare || channelMarketShare;
+        const channelAverageOrderValue = channelData?.averageOrderValue || 0;
+        const channelAverageNetOrderValue =
+          channelData?.averageNetOrderValue || channelAverageOrderValue;
+        const channelAverageFeePerTransaction =
+          channelData?.averageFeePerTransaction || 0;
 
         return {
           id: channel.id,
           name: channel.name,
           revenue: channelRevenue,
+          netRevenue: channelNetRevenue,
+          totalFees: channelTotalFees,
           orders: channelOrders,
           conversionRate: channelOrders > 0 ? channelOrders / 100 : 0, // Simplified metric
-          averageOrderValue:
-            channelOrders > 0 ? channelRevenue / channelOrders : 0,
-          marketShare:
-            totalRevenue > 0 ? (channelRevenue / totalRevenue) * 100 : 0,
-          commissionRate: channel.commissionRate,
+          averageOrderValue: channelAverageOrderValue,
+          averageNetOrderValue: channelAverageNetOrderValue,
+          averageFeePerTransaction: channelAverageFeePerTransaction,
+          marketShare: channelMarketShare,
+          netMarketShare: channelNetMarketShare,
+          commissionRate: channel.commissionRate || 0,
         };
       });
 
@@ -187,10 +215,14 @@ export function useRevenueAnalytics(
       const analyticsData: RevenueAnalyticsData = {
         // Summary metrics
         totalRevenue,
+        totalNetRevenue,
+        totalChannelFees,
         totalQuantity,
         totalProfit,
         totalOrders,
         averageOrderValue,
+        averageNetOrderValue,
+        averageFeePerOrder,
 
         // Growth metrics
         revenueGrowth,

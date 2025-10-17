@@ -18,7 +18,7 @@ interface TopProductMetrics {
   totalProfit: number;
   totalQuantitySold: number;
   averagePrice: number;
-  profitMargin: number;
+  profitMargin: number | null; // P3: null for cost-only products
 }
 
 interface TopProductsWidgetProps {
@@ -112,11 +112,13 @@ export function TopProductsWidget({
               totalQuantitySold: transaction.quantity,
               averagePrice: transaction.unitPrice,
               profitMargin:
-                product.purchasePrice > 0
+                product.purchasePrice > 0 && product.sellingPrice
                   ? ((transaction.unitPrice - product.purchasePrice) /
                       transaction.unitPrice) *
                     100
-                  : 0,
+                  : product.sellingPrice
+                    ? 0
+                    : null, // P3: null for cost-only products
             });
           }
         }
@@ -149,13 +151,16 @@ export function TopProductsWidget({
   }, [limit, period, sortBy]);
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'VND',
     }).format(amount);
   };
 
-  const getProfitMarginColor = (margin: number) => {
+  const getProfitMarginColor = (margin: number | null) => {
+    if (margin === null) {
+      return 'bg-gray-100 text-gray-800'; // P3: Color for cost-only products
+    }
     if (margin >= 50) {
       return 'bg-green-100 text-green-800';
     }
@@ -255,11 +260,17 @@ export function TopProductsWidget({
                         {item.product.remainingQuantity}
                       </p>
                     </div>
-                    <Badge
-                      className={`text-xs ${getProfitMarginColor(item.profitMargin)} ml-2`}
-                    >
-                      {item.profitMargin.toFixed(1)}% margin
-                    </Badge>
+                    {item.profitMargin !== null ? (
+                      <Badge
+                        className={`text-xs ${getProfitMarginColor(item.profitMargin)} ml-2`}
+                      >
+                        {item.profitMargin.toFixed(1)}% margin
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="ml-2 text-xs">
+                        Cost-only
+                      </Badge>
+                    )}
                   </div>
 
                   {/* Metrics */}

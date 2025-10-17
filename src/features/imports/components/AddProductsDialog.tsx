@@ -26,6 +26,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import type { Product, ProductVariant, ImportPhase } from '@/types';
+import { formatVND } from '@/lib/currency';
 
 interface VariantSelection {
   product: Product;
@@ -323,7 +324,7 @@ export function AddProductsDialog({
                                     </span>
                                     <span>•</span>
                                     <span>
-                                      ${product.purchasePrice.toFixed(2)}
+                                      {formatVND(product.purchasePrice)}
                                     </span>
                                   </div>
                                   {hasVariants && (
@@ -393,11 +394,11 @@ export function AddProductsDialog({
                                         </Badge>
                                       </div>
                                       <div className="text-xs text-gray-500">
-                                        Available: {availableStock} • $
-                                        {(
+                                        Available: {availableStock} •{' '}
+                                        {formatVND(
                                           variant.sellingPrice ||
-                                          product.purchasePrice
-                                        ).toFixed(2)}
+                                            product.purchasePrice
+                                        )}
                                       </div>
                                     </div>
 
@@ -517,7 +518,7 @@ export function AddProductsDialog({
                             htmlFor={`cost-${index}`}
                             className="text-xs font-medium text-gray-700"
                           >
-                            Unit Cost ($)
+                            Unit Cost (VND)
                           </Label>
                           <Input
                             id={`cost-${index}`}

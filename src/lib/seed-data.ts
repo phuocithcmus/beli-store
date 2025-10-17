@@ -87,11 +87,30 @@ export function seedSampleData() {
       purchasePrice: 25.0,
       sellingPrice: 59.99,
     },
+    // P3: Add cost-only products (no selling price set)
+    {
+      code: 'SHIRT005',
+      name: 'Sample Cotton Tee (Cost-Only)',
+      category: 'shirt' as const,
+      remainingQuantity: 20,
+      soldQuantity: 0,
+      purchasePrice: 8.0,
+      // sellingPrice: undefined - intentionally omitted for cost-only tracking
+    },
+    {
+      code: 'PANTS005',
+      name: 'Prototype Denim (Cost-Only)',
+      category: 'pants' as const,
+      remainingQuantity: 10,
+      soldQuantity: 2,
+      purchasePrice: 15.0,
+      // sellingPrice: undefined - intentionally omitted for cost-only tracking
+    },
   ];
 
   // Save all sample products
-  const createdProducts: { id: string; code: string; sellingPrice: number }[] =
-    [];
+  const createdProducts: { id: string; code: string; sellingPrice?: number }[] =
+    []; // P3: Use optional sellingPrice
   sampleProducts.forEach((product) => {
     try {
       const createdProduct = storageService.saveProduct(product);
@@ -176,7 +195,9 @@ export function seedSampleData() {
           inventoryCount: variant.inventoryCount,
           reservedCount: variant.reservedCount,
           soldCount: variant.soldCount,
-          sellingPrice: tshirtProduct.sellingPrice + (index % 2 === 0 ? 2 : 0), // Slight price variation
+          sellingPrice: tshirtProduct.sellingPrice
+            ? tshirtProduct.sellingPrice + (index % 2 === 0 ? 2 : 0)
+            : undefined, // Slight price variation
         });
       } catch (error) {
         console.error(`Error adding T-shirt variant:`, error);
@@ -242,7 +263,9 @@ export function seedSampleData() {
           inventoryCount: variant.inventoryCount,
           reservedCount: variant.reservedCount,
           soldCount: variant.soldCount,
-          sellingPrice: poloProduct.sellingPrice + index * 1.5, // Price variation
+          sellingPrice: poloProduct.sellingPrice
+            ? poloProduct.sellingPrice + index * 1.5
+            : undefined, // Price variation
         });
       } catch (error) {
         console.error(`Error adding Polo variant:`, error);
@@ -316,7 +339,9 @@ export function seedSampleData() {
           inventoryCount: variant.inventoryCount,
           reservedCount: variant.reservedCount,
           soldCount: variant.soldCount,
-          sellingPrice: jeansProduct.sellingPrice + (index % 3 === 0 ? 5 : 0), // Price variation
+          sellingPrice: jeansProduct.sellingPrice
+            ? jeansProduct.sellingPrice + (index % 3 === 0 ? 5 : 0)
+            : undefined, // Price variation
         });
       } catch (error) {
         console.error(`Error adding Jeans variant:`, error);

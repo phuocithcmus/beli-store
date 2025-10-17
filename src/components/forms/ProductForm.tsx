@@ -103,20 +103,20 @@ export function ProductForm({
           <div className="space-y-4">
             <FormField
               name="purchasePrice"
-              label="Purchase Price ($)"
+              label="Purchase Price (VND)"
               type="number"
-              step="0.01"
-              placeholder="0.00"
+              step="1"
+              placeholder="0"
               required
               disabled={isLoading}
             />
 
             <FormField
               name="sellingPrice"
-              label="Selling Price ($)"
+              label="Selling Price (VND)"
               type="number"
-              step="0.01"
-              placeholder="0.00"
+              step="1"
+              placeholder="0"
               required
               disabled={isLoading}
             />

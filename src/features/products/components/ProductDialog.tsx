@@ -24,7 +24,7 @@ interface ProductFormData {
   remainingQuantity: number;
   soldQuantity: number;
   purchasePrice: number;
-  sellingPrice: number;
+  sellingPrice?: number; // P3: Made optional for flexible pricing
 }
 
 interface ProductDialogProps {

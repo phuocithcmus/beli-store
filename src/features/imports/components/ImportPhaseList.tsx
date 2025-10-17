@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { ImportPhase } from '@/types';
+import { formatVND } from '@/lib/currency';
 
 interface ImportPhaseFilters {
   status: 'all' | 'active' | 'completed';
@@ -227,7 +228,7 @@ export function ImportPhaseList({
                       {phase.totalItems}
                     </td>
                     <td className="p-4 text-right font-mono">
-                      ${phase.totalCost.toFixed(2)}
+                      {formatVND(phase.totalCost)}
                     </td>
                     <td className="p-4">
                       <div className="flex items-center justify-center gap-1">

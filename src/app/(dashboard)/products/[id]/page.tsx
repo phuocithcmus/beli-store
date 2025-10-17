@@ -178,9 +178,15 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   <p className="text-sm font-medium text-muted-foreground">
                     Selling Price
                   </p>
-                  <p className="text-lg font-semibold">
-                    ${product.sellingPrice.toFixed(2)}
-                  </p>
+                  {product.sellingPrice ? (
+                    <p className="text-lg font-semibold">
+                      ${product.sellingPrice.toFixed(2)}
+                    </p>
+                  ) : (
+                    <p className="text-lg font-semibold italic text-muted-foreground">
+                      Not set
+                    </p>
+                  )}
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
@@ -260,8 +266,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   <p className="text-sm font-medium">Variants Sold</p>
                   <p className="text-2xl font-bold">{totalVariantSold}</p>
                   <p className="text-xs text-muted-foreground">
-                    ${(totalVariantSold * product.sellingPrice).toFixed(2)}{' '}
-                    revenue
+                    {product.sellingPrice
+                      ? `$${(totalVariantSold * product.sellingPrice).toFixed(2)} revenue`
+                      : `$${(totalVariantSold * product.purchasePrice).toFixed(2)} cost basis`}
                   </p>
                 </div>
               </div>
@@ -275,19 +282,36 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   <Package className="h-4 w-4 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Profit Margin</p>
-                  <p className="text-2xl font-bold">
-                    {(
-                      ((product.sellingPrice - product.purchasePrice) /
-                        product.sellingPrice) *
-                      100
-                    ).toFixed(1)}
-                    %
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    ${(product.sellingPrice - product.purchasePrice).toFixed(2)}{' '}
-                    per unit
-                  </p>
+                  {product.sellingPrice ? (
+                    <>
+                      <p className="text-sm font-medium">Profit Margin</p>
+                      <p className="text-2xl font-bold">
+                        {(
+                          ((product.sellingPrice - product.purchasePrice) /
+                            product.sellingPrice) *
+                          100
+                        ).toFixed(1)}
+                        %
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        $
+                        {(product.sellingPrice - product.purchasePrice).toFixed(
+                          2
+                        )}{' '}
+                        per unit
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium">Cost Tracking</p>
+                      <p className="text-2xl font-bold text-muted-foreground">
+                        Cost Only
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        ${product.purchasePrice.toFixed(2)} per unit cost
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
             </CardContent>

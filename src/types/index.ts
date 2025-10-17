@@ -8,7 +8,7 @@ export interface Product {
   remainingQuantity: number;
   soldQuantity: number;
   purchasePrice: number;
-  sellingPrice: number;
+  sellingPrice?: number; // P3: Made optional for flexible pricing
   createdAt: Date;
   updatedAt: Date;
   // Enhanced fields for variant support
@@ -41,13 +41,16 @@ export interface RevenueEntry {
   productVariantId?: string;
   productName: string;
   variantDetails?: string;
-  amount: number;
+  amount: number; // Gross revenue amount
   quantity: number;
   unitPrice: number;
   salesChannel: string;
   salesChannelName: string;
   saleDate: Date;
   notes?: string;
+  // P2 Channel Fee Integration
+  channelFee?: number; // Calculated channel fee amount
+  netAmount?: number; // Net revenue after channel fees (amount - channelFee)
   createdAt: Date;
   updatedAt: Date;
 }
@@ -58,7 +61,22 @@ export interface SalesChannel {
   name: string;
   type: 'online' | 'manual' | 'partner';
   isActive: boolean;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
+  // P2 Feature: Channel Fee Configuration
+  feeStructure?: ChannelFeeStructure;
+}
+
+// Channel Fee Configuration Types (P2 Feature)
+export interface ChannelFeeStructure {
+  id: string;
+  salesChannelId: string;
+  percentageRate: number; // Percentage fee (e.g., 3.5 for 3.5%)
+  fixedFee: number; // Fixed fee in VND
+  minimumFee?: number; // Optional minimum fee
+  maximumFee?: number; // Optional maximum fee
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 // Variant Sales Tracking Types
@@ -102,6 +120,20 @@ export interface ImportPhase {
   status: 'active' | 'completed';
   totalItems: number;
   totalCost: number;
+  totalFees: number; // Total of all import fees
+  finalCost: number; // totalCost + totalFees
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Import Fee Management Types (P1 Feature)
+export interface ImportFee {
+  id: string;
+  importPhaseId: string;
+  type: 'shipping' | 'customs' | 'handling' | 'storage' | 'other';
+  name: string; // Display name for the fee
+  amount: number; // Amount in VND
+  description?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -165,7 +197,7 @@ export interface ProductFormData {
   category: 'shirt' | 'pants';
   remainingQuantity: number;
   purchasePrice: number;
-  sellingPrice: number;
+  sellingPrice?: number; // P3: Made optional for flexible pricing
 }
 
 export interface ProductVariantFormData {
@@ -191,6 +223,20 @@ export interface ImportPhaseFormData {
   description?: string;
 }
 
+export interface ImportFeeFormData {
+  type: 'shipping' | 'customs' | 'handling' | 'storage' | 'other';
+  name: string;
+  amount: string; // String for form input
+  description?: string;
+}
+
+export interface ChannelFeeFormData {
+  percentageRate: string; // String for form input (e.g., "3.5")
+  fixedFee: string; // String for form input in VND
+  minimumFee?: string; // Optional minimum fee
+  maximumFee?: string; // Optional maximum fee
+}
+
 export interface TransactionFormData {
   type: 'sale' | 'purchase';
   productId: string;
@@ -212,12 +258,17 @@ export interface StorageSchema {
   productVariants: ProductVariant[];
   revenueEntries: RevenueEntry[];
   salesChannels: SalesChannel[];
+  // Fee management entities
+  importFees: ImportFee[];
+  channelFeeStructures: ChannelFeeStructure[];
   metadata: {
     version: string;
     lastBackup: Date;
     recordCounts: Record<string, number>;
     schemaVersion: number;
     variantSystemEnabled: boolean;
+    feeSystemEnabled: boolean;
+    channelFeeSystemEnabled: boolean;
   };
 }
 
@@ -231,7 +282,7 @@ export interface BaseComponentProps {
 export interface TableColumn<T> {
   key: keyof T | string;
   label: string;
-  render?: (value: any, row: T) => React.ReactNode;
+  render?: (value: unknown, row: T) => React.ReactNode;
   sortable?: boolean;
 }
 

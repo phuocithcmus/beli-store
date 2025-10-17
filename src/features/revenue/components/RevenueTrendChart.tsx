@@ -7,6 +7,7 @@
 
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatVND } from '@/lib/currency';
 
 interface RevenueDataPoint {
   period: string;
@@ -201,7 +202,7 @@ export function RevenueTrendChart({
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">
-                ${data.reduce((sum, d) => sum + d.profit, 0).toFixed(2)}
+                {formatVND(data.reduce((sum, d) => sum + d.profit, 0))}
               </div>
               <div className="text-sm text-muted-foreground">Total Profit</div>
             </div>

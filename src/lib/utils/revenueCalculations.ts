@@ -3,7 +3,7 @@
  * Provides utility functions for revenue analytics and calculations
  */
 
-import type { RevenueEntry, Product, ProductVariant } from '@/types';
+import type { RevenueEntry, Product } from '@/types';
 
 export interface RevenueMetrics {
   totalRevenue: number;
@@ -34,10 +34,15 @@ export interface ChannelRevenueData {
   channelId: string;
   channelName: string;
   revenue: number;
+  netRevenue: number;
+  totalFees: number;
   transactions: number;
   quantity: number;
   marketShare: number;
+  netMarketShare: number;
   averageOrderValue: number;
+  averageNetOrderValue: number;
+  averageFeePerTransaction: number;
 }
 
 export interface RevenueGrowthData {
@@ -156,7 +161,7 @@ export class RevenueCalculator {
   }
 
   /**
-   * Calculate revenue by sales channel
+   * Calculate revenue by sales channel with P2 channel fee integration
    */
   static calculateByChannel(entries: RevenueEntry[]): ChannelRevenueData[] {
     const grouped = new Map<
@@ -164,25 +169,36 @@ export class RevenueCalculator {
       {
         channelName: string;
         revenue: number;
+        netRevenue: number;
+        totalFees: number;
         transactions: number;
         quantity: number;
       }
     >();
 
     let totalRevenue = 0;
+    let totalNetRevenue = 0;
 
     entries.forEach((entry) => {
       totalRevenue += entry.amount;
+      const netAmount = entry.netAmount || entry.amount; // Use netAmount if available, fallback to gross
+      const channelFee = entry.channelFee || 0;
+      totalNetRevenue += netAmount;
+
       const existing = grouped.get(entry.salesChannel);
 
       if (existing) {
         existing.revenue += entry.amount;
+        existing.netRevenue += netAmount;
+        existing.totalFees += channelFee;
         existing.transactions += 1;
         existing.quantity += entry.quantity;
       } else {
         grouped.set(entry.salesChannel, {
           channelName: entry.salesChannelName,
           revenue: entry.amount,
+          netRevenue: netAmount,
+          totalFees: channelFee,
           transactions: 1,
           quantity: entry.quantity,
         });
@@ -196,6 +212,12 @@ export class RevenueCalculator {
         marketShare: totalRevenue > 0 ? (data.revenue / totalRevenue) * 100 : 0,
         averageOrderValue:
           data.transactions > 0 ? data.revenue / data.transactions : 0,
+        netMarketShare:
+          totalNetRevenue > 0 ? (data.netRevenue / totalNetRevenue) * 100 : 0,
+        averageNetOrderValue:
+          data.transactions > 0 ? data.netRevenue / data.transactions : 0,
+        averageFeePerTransaction:
+          data.transactions > 0 ? data.totalFees / data.transactions : 0,
       }))
       .sort((a, b) => b.revenue - a.revenue);
   }

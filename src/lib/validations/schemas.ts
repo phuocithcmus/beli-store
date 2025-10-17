@@ -10,14 +10,20 @@ export const ProductSchema = z
     remainingQuantity: z.number().int().min(0, 'Quantity cannot be negative'),
     soldQuantity: z.number().int().min(0, 'Sold quantity cannot be negative'),
     purchasePrice: z.number().positive('Purchase price must be positive'),
-    sellingPrice: z.number().positive('Selling price must be positive'),
+    sellingPrice: z
+      .number()
+      .positive('Selling price must be positive')
+      .optional(), // P3: Made optional
     createdAt: z.date(),
     updatedAt: z.date(),
   })
-  .refine((data) => data.sellingPrice > data.purchasePrice, {
-    message: 'Selling price must be greater than purchase price',
-    path: ['sellingPrice'],
-  });
+  .refine(
+    (data) => !data.sellingPrice || data.sellingPrice > data.purchasePrice,
+    {
+      message: 'Selling price must be greater than purchase price when set',
+      path: ['sellingPrice'],
+    }
+  );
 
 export const ImportPhaseSchema = z.object({
   id: z.string().uuid(),
@@ -27,6 +33,19 @@ export const ImportPhaseSchema = z.object({
   status: z.enum(['active', 'completed']),
   totalItems: z.number().int().min(0),
   totalCost: z.number().min(0),
+  totalFees: z.number().min(0).default(0),
+  finalCost: z.number().min(0),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+
+export const ImportFeeSchema = z.object({
+  id: z.string().uuid(),
+  importPhaseId: z.string().uuid(),
+  type: z.enum(['shipping', 'customs', 'handling', 'storage', 'other']),
+  name: z.string().min(1, 'Fee name is required').max(100),
+  amount: z.number().min(0, 'Fee amount cannot be negative'),
+  description: z.string().max(500).optional(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -117,6 +136,90 @@ export const ImportPhaseFormSchema = z
     }
   );
 
+export const ImportFeeFormSchema = z.object({
+  type: z.enum(['shipping', 'customs', 'handling', 'storage', 'other'], {
+    required_error: 'Please select a fee type',
+  }),
+  name: z.string().min(1, 'Fee name is required').max(100),
+  amount: z
+    .string()
+    .min(1, 'Amount is required')
+    .refine((val) => !isNaN(Number(val)) && Number(val) >= 0, {
+      message: 'Amount must be a valid positive number',
+    }),
+  description: z.string().max(500).optional(),
+});
+
+export const ChannelFeeStructureSchema = z
+  .object({
+    id: z.string().uuid(),
+    salesChannelId: z.string().uuid(),
+    percentageRate: z
+      .number()
+      .min(0, 'Percentage rate cannot be negative')
+      .max(100, 'Percentage rate cannot exceed 100%'),
+    fixedFee: z.number().min(0, 'Fixed fee cannot be negative'),
+    minimumFee: z.number().min(0, 'Minimum fee cannot be negative').optional(),
+    maximumFee: z.number().min(0, 'Maximum fee cannot be negative').optional(),
+    isActive: z.boolean().default(true),
+    createdAt: z.date(),
+    updatedAt: z.date(),
+  })
+  .refine(
+    (data) => {
+      if (data.minimumFee && data.maximumFee) {
+        return data.minimumFee <= data.maximumFee;
+      }
+      return true;
+    },
+    {
+      message: 'Minimum fee cannot be greater than maximum fee',
+      path: ['maximumFee'],
+    }
+  );
+
+export const ChannelFeeFormSchema = z
+  .object({
+    percentageRate: z
+      .string()
+      .min(1, 'Percentage rate is required')
+      .refine(
+        (val) => !isNaN(Number(val)) && Number(val) >= 0 && Number(val) <= 100,
+        {
+          message: 'Percentage rate must be between 0 and 100',
+        }
+      ),
+    fixedFee: z
+      .string()
+      .min(1, 'Fixed fee is required')
+      .refine((val) => !isNaN(Number(val)) && Number(val) >= 0, {
+        message: 'Fixed fee must be a valid positive number',
+      }),
+    minimumFee: z
+      .string()
+      .optional()
+      .refine((val) => !val || (!isNaN(Number(val)) && Number(val) >= 0), {
+        message: 'Minimum fee must be a valid positive number',
+      }),
+    maximumFee: z
+      .string()
+      .optional()
+      .refine((val) => !val || (!isNaN(Number(val)) && Number(val) >= 0), {
+        message: 'Maximum fee must be a valid positive number',
+      }),
+  })
+  .refine(
+    (data) => {
+      const min = data.minimumFee ? Number(data.minimumFee) : 0;
+      const max = data.maximumFee ? Number(data.maximumFee) : Infinity;
+      return min <= max;
+    },
+    {
+      message: 'Minimum fee cannot be greater than maximum fee',
+      path: ['maximumFee'],
+    }
+  );
+
 export const TransactionFormSchema = z.object({
   type: z.enum(['sale', 'purchase'], {
     required_error: 'Please select transaction type',
@@ -180,8 +283,10 @@ export const StorageMetadataSchema = z.object({
   version: z.string(),
   lastBackup: z.date(),
   recordCounts: z.record(z.string(), z.number()),
-  schemaVersion: z.number().default(2),
+  schemaVersion: z.number().default(4),
   variantSystemEnabled: z.boolean().default(true),
+  feeSystemEnabled: z.boolean().default(true),
+  channelFeeSystemEnabled: z.boolean().default(true),
 });
 
 export const ProductVariantSchema = z.object({
@@ -204,13 +309,16 @@ export const RevenueEntrySchema = z.object({
   productVariantId: z.string().uuid().optional(),
   productName: z.string().min(1),
   variantDetails: z.string().optional(),
-  amount: z.number().min(0),
+  amount: z.number().min(0), // Gross revenue amount
   quantity: z.number().int().min(1),
   unitPrice: z.number().min(0),
   salesChannel: z.string().min(1),
   salesChannelName: z.string().min(1),
   saleDate: z.date(),
   notes: z.string().max(500).optional(),
+  // P2 Channel Fee Integration
+  channelFee: z.number().min(0).optional(),
+  netAmount: z.number().min(0).optional(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -232,6 +340,8 @@ export const StorageSchema = z.object({
   productVariants: z.array(ProductVariantSchema),
   revenueEntries: z.array(RevenueEntrySchema),
   salesChannels: z.array(SalesChannelSchema),
+  importFees: z.array(ImportFeeSchema),
+  channelFeeStructures: z.array(ChannelFeeStructureSchema),
   metadata: StorageMetadataSchema,
 });
 
@@ -245,6 +355,7 @@ export const PaginationSchema = z.object({
 // Type exports for form validation
 export type ProductFormData = z.infer<typeof ProductFormSchema>;
 export type ImportPhaseFormData = z.infer<typeof ImportPhaseFormSchema>;
+export type ImportFeeFormData = z.infer<typeof ImportFeeFormSchema>;
 export type TransactionFormData = z.infer<typeof TransactionFormSchema>;
 export type SaleFormData = z.infer<typeof SaleFormSchema>;
 export type ProductFilters = z.infer<typeof ProductFiltersSchema>;

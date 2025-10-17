@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { formatVND } from '@/lib/currency';
 import type { Product } from '@/types';
 
 interface ProductFormData {
@@ -18,7 +19,7 @@ interface ProductFormData {
   remainingQuantity: number;
   soldQuantity: number;
   purchasePrice: number;
-  sellingPrice: number;
+  sellingPrice?: number; // P3: Made optional for flexible pricing
 }
 
 interface ProductFormProps {
@@ -41,7 +42,7 @@ export function ProductForm({
     remainingQuantity: product?.remainingQuantity || 0,
     soldQuantity: product?.soldQuantity || 0,
     purchasePrice: product?.purchasePrice || 0,
-    sellingPrice: product?.sellingPrice || 0,
+    sellingPrice: product?.sellingPrice || undefined, // P3: Allow undefined for optional pricing
   });
 
   const [errors, setErrors] = useState<
@@ -76,11 +77,14 @@ export function ProductForm({
       newErrors.purchasePrice = 'Purchase price must be positive';
     }
 
-    if (formData.sellingPrice <= 0) {
-      newErrors.sellingPrice = 'Selling price must be positive';
-    } else if (formData.sellingPrice <= formData.purchasePrice) {
-      newErrors.sellingPrice =
-        'Selling price must be greater than purchase price';
+    // P3: Validate selling price only if it's provided (optional)
+    if (formData.sellingPrice !== undefined) {
+      if (formData.sellingPrice <= 0) {
+        newErrors.sellingPrice = 'Selling price must be positive when set';
+      } else if (formData.sellingPrice <= formData.purchasePrice) {
+        newErrors.sellingPrice =
+          'Selling price must be greater than purchase price';
+      }
     }
 
     setErrors(newErrors);
@@ -97,7 +101,7 @@ export function ProductForm({
 
   const handleChange = (
     field: keyof ProductFormData,
-    value: string | number
+    value: string | number | undefined // P3: Allow undefined for optional fields
   ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
 
@@ -217,21 +221,21 @@ export function ProductForm({
             <Label htmlFor="purchasePrice">Purchase Price *</Label>
             <div className="relative">
               <span className="absolute left-3 top-3 text-sm text-muted-foreground">
-                $
+                VND
               </span>
               <Input
                 id="purchasePrice"
                 type="number"
-                placeholder="0.00"
+                placeholder="0"
                 value={formData.purchasePrice}
                 onChange={(e) =>
                   handleChange('purchasePrice', parseFloat(e.target.value) || 0)
                 }
                 min={0}
-                step={0.01}
+                step={1}
                 required
                 disabled={loading}
-                className={`pl-8 ${errors.purchasePrice ? 'border-red-500' : ''}`}
+                className={`pl-12 ${errors.purchasePrice ? 'border-red-500' : ''}`}
               />
             </div>
             {errors.purchasePrice && (
@@ -242,26 +246,33 @@ export function ProductForm({
           </div>
 
           <div>
-            <Label htmlFor="sellingPrice">Selling Price *</Label>
+            <Label htmlFor="sellingPrice">Selling Price (Optional)</Label>
             <div className="relative">
               <span className="absolute left-3 top-3 text-sm text-muted-foreground">
-                $
+                VND
               </span>
               <Input
                 id="sellingPrice"
                 type="number"
-                placeholder="0.00"
-                value={formData.sellingPrice}
-                onChange={(e) =>
-                  handleChange('sellingPrice', parseFloat(e.target.value) || 0)
-                }
+                placeholder="0 (leave empty for cost-only tracking)"
+                value={formData.sellingPrice || ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  handleChange(
+                    'sellingPrice',
+                    value ? parseFloat(value) || undefined : undefined
+                  );
+                }}
                 min={0}
-                step={0.01}
-                required
+                step={1}
                 disabled={loading}
-                className={`pl-8 ${errors.sellingPrice ? 'border-red-500' : ''}`}
+                className={`pl-12 ${errors.sellingPrice ? 'border-red-500' : ''}`}
               />
             </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Optional: Set a price to calculate profit margins, or leave empty
+              for cost-only tracking
+            </p>
             {errors.sellingPrice && (
               <p className="mt-1 text-sm text-red-600">{errors.sellingPrice}</p>
             )}
@@ -269,33 +280,58 @@ export function ProductForm({
         </div>
       </div>
 
-      {/* Profit Margin Display */}
-      {formData.purchasePrice > 0 &&
-        formData.sellingPrice > formData.purchasePrice && (
-          <div className="rounded-lg border border-green-200 bg-green-50 p-4">
-            <div className="flex items-center gap-4 text-sm">
-              <div>
-                <span className="font-medium text-green-800">
-                  Profit per unit:
-                </span>
-                <span className="ml-1 text-green-700">
-                  ${(formData.sellingPrice - formData.purchasePrice).toFixed(2)}
-                </span>
-              </div>
-              <div>
-                <span className="font-medium text-green-800">Margin:</span>
-                <span className="ml-1 text-green-700">
-                  {(
-                    ((formData.sellingPrice - formData.purchasePrice) /
-                      formData.sellingPrice) *
-                    100
-                  ).toFixed(1)}
-                  %
-                </span>
+      {/* Profit Margin Display or Cost-Only Information */}
+      {formData.purchasePrice > 0 && (
+        <div className="rounded-lg border p-4">
+          {formData.sellingPrice &&
+          formData.sellingPrice > formData.purchasePrice ? (
+            // Show profit margin when selling price is set
+            <div className="border-green-200 bg-green-50">
+              <div className="flex items-center gap-4 text-sm">
+                <div>
+                  <span className="font-medium text-green-800">
+                    Profit per unit:
+                  </span>
+                  <span className="ml-1 text-green-700">
+                    {formatVND(formData.sellingPrice - formData.purchasePrice)}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium text-green-800">Margin:</span>
+                  <span className="ml-1 text-green-700">
+                    {(
+                      ((formData.sellingPrice - formData.purchasePrice) /
+                        formData.sellingPrice) *
+                      100
+                    ).toFixed(1)}
+                    %
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          ) : (
+            // Show cost-only information when no selling price is set
+            <div className="border-blue-200 bg-blue-50">
+              <div className="flex items-center gap-4 text-sm">
+                <div>
+                  <span className="font-medium text-blue-800">
+                    Cost per unit:
+                  </span>
+                  <span className="ml-1 text-blue-700">
+                    {formatVND(formData.purchasePrice)}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium text-blue-800">Mode:</span>
+                  <span className="ml-1 text-blue-700">
+                    Cost-only tracking (no set price)
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Form Actions */}
       <div className="flex items-center justify-end gap-4 border-t pt-6">

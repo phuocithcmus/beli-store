@@ -123,7 +123,7 @@ export function ProductVariantDialog({
 
     // Real-time validation
     const validation = validateVariantForm(newFormData);
-    setValidationErrors(validation.errors);
+    // TODO: Display validation errors in UI
     setValidationWarnings(validation.warnings);
 
     // Set field-specific errors

@@ -10,6 +10,7 @@ import {
   useVariantAnalytics,
   useVariantDashboard,
 } from '@/features/products/hooks/useVariantAnalytics';
+import { formatVND } from '@/lib/currency';
 
 interface VariantAnalyticsProps {
   variantId?: string;
@@ -186,7 +187,7 @@ export function VariantAnalytics({
                     Total Revenue
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    ${dashboardMetrics.totalSalesRevenue.toFixed(2)}
+                    {formatVND(dashboardMetrics.totalSalesRevenue)}
                   </dd>
                 </dl>
               </div>
@@ -216,7 +217,7 @@ export function VariantAnalytics({
                     Inventory Value
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    ${dashboardMetrics.totalInventoryValue.toFixed(2)}
+                    {formatVND(dashboardMetrics.totalInventoryValue)}
                   </dd>
                 </dl>
               </div>

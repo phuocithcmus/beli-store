@@ -57,9 +57,9 @@ export function debugStorageState() {
     });
 
     // Check sales channels
-    const salesChannels = revenueService.getSalesChannels();
-    console.log('\n🛒 Sales Channels:', salesChannels.data.length);
-    salesChannels.data.forEach((channel, index) => {
+    const salesChannels = storageService.getSalesChannels();
+    console.log('\n🛒 Sales Channels:', salesChannels.length);
+    salesChannels.forEach((channel, index) => {
       console.log(
         `  ${index + 1}. ${channel.name} (${channel.type}) - Active: ${channel.isActive}`
       );
@@ -70,11 +70,11 @@ export function debugStorageState() {
       productsWithVariants: productsWithVariants.length,
       variants: allVariants.length,
       revenueEntries: revenueEntries.data.length,
-      salesChannels: salesChannels.data.length,
+      salesChannels: salesChannels.length,
     };
   } catch (error) {
     console.error('❌ Error debugging storage:', error);
-    return { error: error.message };
+    return { error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
 
@@ -93,8 +93,8 @@ export function createSampleData() {
         category: 'shirt' as const,
         remainingQuantity: 100,
         soldQuantity: 0,
-        price: 25.99,
-        description: 'Classic cotton t-shirt',
+        purchasePrice: 15.0,
+        sellingPrice: 25.99,
         hasVariants: true,
       });
 
@@ -104,32 +104,32 @@ export function createSampleData() {
         category: 'pants' as const,
         remainingQuantity: 50,
         soldQuantity: 0,
-        price: 59.99,
-        description: 'Classic denim jeans',
+        purchasePrice: 35.0,
+        sellingPrice: 59.99,
         hasVariants: true,
       });
 
       // Create variants for the products
       if (sampleProduct1) {
-        storageService.addProductVariant({
+        storageService.saveProductVariant({
           productId: sampleProduct1.id,
           sku: 'TSH001-RED-M',
           color: 'Red',
           size: 'M',
           form: 'fit' as const,
-          price: 25.99,
+          sellingPrice: 62.99,
           inventoryCount: 25,
           soldCount: 0,
           reservedCount: 0,
         });
 
-        storageService.addProductVariant({
+        storageService.saveProductVariant({
           productId: sampleProduct1.id,
           sku: 'TSH001-BLUE-L',
           color: 'Blue',
           size: 'L',
           form: 'oversized' as const,
-          price: 27.99,
+          sellingPrice: 27.99,
           inventoryCount: 30,
           soldCount: 0,
           reservedCount: 0,
@@ -137,13 +137,13 @@ export function createSampleData() {
       }
 
       if (sampleProduct2) {
-        storageService.addProductVariant({
+        storageService.saveProductVariant({
           productId: sampleProduct2.id,
           sku: 'PNT001-DARK-32',
           color: 'Dark Blue',
-          size: '32',
+          size: 'L',
           form: 'fit' as const,
-          price: 59.99,
+          sellingPrice: 59.99,
           inventoryCount: 20,
           soldCount: 0,
           reservedCount: 0,
@@ -158,6 +158,6 @@ export function createSampleData() {
     }
   } catch (error) {
     console.error('❌ Error creating sample data:', error);
-    return { error: error.message };
+    return { error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }

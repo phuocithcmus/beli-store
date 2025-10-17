@@ -1,5 +1,7 @@
 import { StorageSchema as StorageValidator } from '@/lib/validations/schemas';
 import type {
+  ChannelFeeStructure,
+  ImportFee,
   ImportPhase,
   ImportPhaseProduct,
   Product,
@@ -38,12 +40,30 @@ class LocalStorageService {
       data.salesChannels = DEFAULT_SALES_CHANNELS;
     }
 
+    // Schema v3: Add fee management system
+    if (!data.importFees) {
+      data.importFees = [];
+    }
+
+    // Schema v4: Add channel fee structures system
+    if (!data.channelFeeStructures) {
+      data.channelFeeStructures = [];
+    }
+
     // Update metadata schema
     if (!data.metadata.schemaVersion) {
-      data.metadata.schemaVersion = 2;
+      data.metadata.schemaVersion = 4;
+    } else if (data.metadata.schemaVersion < 4) {
+      data.metadata.schemaVersion = 4;
     }
     if (data.metadata.variantSystemEnabled === undefined) {
       data.metadata.variantSystemEnabled = true;
+    }
+    if (data.metadata.feeSystemEnabled === undefined) {
+      data.metadata.feeSystemEnabled = true;
+    }
+    if (data.metadata.channelFeeSystemEnabled === undefined) {
+      data.metadata.channelFeeSystemEnabled = true;
     }
 
     // Migrate existing ImportPhaseProduct records to include productVariantId field
@@ -64,6 +84,15 @@ class LocalStorageService {
       }));
     }
 
+    // Migrate existing ImportPhase records to include fee-related fields
+    if (data.importPhases && Array.isArray(data.importPhases)) {
+      data.importPhases = data.importPhases.map((ip: Partial<ImportPhase>) => ({
+        ...ip,
+        totalFees: ip.totalFees ?? 0, // Initialize to 0 if not present
+        finalCost: ip.finalCost ?? (ip.totalCost || 0), // Initialize to totalCost if not present
+      }));
+    }
+
     // Update record counts
     if (!data.metadata.recordCounts.productVariants) {
       data.metadata.recordCounts.productVariants = data.productVariants.length;
@@ -73,6 +102,13 @@ class LocalStorageService {
     }
     if (!data.metadata.recordCounts.salesChannels) {
       data.metadata.recordCounts.salesChannels = data.salesChannels.length;
+    }
+    if (!data.metadata.recordCounts.importFees) {
+      data.metadata.recordCounts.importFees = data.importFees.length;
+    }
+    if (!data.metadata.recordCounts.channelFeeStructures) {
+      data.metadata.recordCounts.channelFeeStructures =
+        data.channelFeeStructures.length;
     }
 
     return data as StorageSchema;
@@ -168,6 +204,9 @@ class LocalStorageService {
       productVariants: [],
       revenueEntries: [],
       salesChannels: DEFAULT_SALES_CHANNELS,
+      // Fee management entities
+      importFees: [],
+      channelFeeStructures: [],
       metadata: {
         version: this.VERSION,
         lastBackup: new Date(),
@@ -180,9 +219,13 @@ class LocalStorageService {
           productVariants: 0,
           revenueEntries: 0,
           salesChannels: DEFAULT_SALES_CHANNELS.length,
+          importFees: 0,
+          channelFeeStructures: 0,
         },
-        schemaVersion: 2, // Incremented for variant system
+        schemaVersion: 4, // Incremented for channel fee system
         variantSystemEnabled: true,
+        feeSystemEnabled: true,
+        channelFeeSystemEnabled: true,
       },
     };
   }
@@ -202,6 +245,8 @@ class LocalStorageService {
       productVariants: data.productVariants.length,
       revenueEntries: data.revenueEntries.length,
       salesChannels: data.salesChannels.length,
+      importFees: data.importFees.length,
+      channelFeeStructures: data.channelFeeStructures.length,
     };
 
     // Save without triggering recursive update
@@ -695,6 +740,274 @@ class LocalStorageService {
 
     this.saveData(data);
     return newProduct;
+  }
+
+  // Import Fee methods
+  getImportFees(importPhaseId?: string): ImportFee[] {
+    const data = this.getData();
+    if (importPhaseId) {
+      return data.importFees.filter(
+        (fee) => fee.importPhaseId === importPhaseId
+      );
+    }
+    return data.importFees;
+  }
+
+  getImportFee(id: string): ImportFee | undefined {
+    return this.getData().importFees.find((fee) => fee.id === id);
+  }
+
+  saveImportFee(
+    feeData: Omit<ImportFee, 'id' | 'createdAt' | 'updatedAt'>
+  ): ImportFee {
+    const data = this.getData();
+
+    // Validate import phase exists
+    const phase = data.importPhases.find((p) => p.id === feeData.importPhaseId);
+    if (!phase) {
+      throw new Error('Import phase not found');
+    }
+
+    // Check if phase is completed
+    if (phase.status === 'completed') {
+      throw new Error('Cannot add fees to completed import phase');
+    }
+
+    const newFee: ImportFee = {
+      ...feeData,
+      id: this.generateId(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    data.importFees.push(newFee);
+
+    // Update import phase totals
+    this.recalculateImportPhaseTotals(feeData.importPhaseId, data);
+
+    this.saveData(data);
+    return newFee;
+  }
+
+  updateImportFee(
+    id: string,
+    updates: Partial<Omit<ImportFee, 'id' | 'importPhaseId' | 'createdAt'>>
+  ): ImportFee {
+    const data = this.getData();
+
+    const feeIndex = data.importFees.findIndex((fee) => fee.id === id);
+    if (feeIndex === -1) {
+      throw new Error('Import fee not found');
+    }
+
+    const fee = data.importFees[feeIndex];
+
+    // Check if import phase is completed
+    const phase = data.importPhases.find((p) => p.id === fee.importPhaseId);
+    if (phase?.status === 'completed') {
+      throw new Error('Cannot update fees for completed import phase');
+    }
+
+    // Update the fee
+    data.importFees[feeIndex] = {
+      ...fee,
+      ...updates,
+      updatedAt: new Date(),
+    };
+
+    // Recalculate import phase totals
+    this.recalculateImportPhaseTotals(fee.importPhaseId, data);
+
+    this.saveData(data);
+    return data.importFees[feeIndex];
+  }
+
+  deleteImportFee(id: string): void {
+    const data = this.getData();
+
+    const feeIndex = data.importFees.findIndex((fee) => fee.id === id);
+    if (feeIndex === -1) {
+      throw new Error('Import fee not found');
+    }
+
+    const fee = data.importFees[feeIndex];
+
+    // Check if import phase is completed
+    const phase = data.importPhases.find((p) => p.id === fee.importPhaseId);
+    if (phase?.status === 'completed') {
+      throw new Error('Cannot delete fees from completed import phase');
+    }
+
+    // Remove the fee
+    data.importFees.splice(feeIndex, 1);
+
+    // Recalculate import phase totals
+    this.recalculateImportPhaseTotals(fee.importPhaseId, data);
+
+    this.saveData(data);
+  }
+
+  /**
+   * Recalculate import phase totals including fees
+   * @private
+   */
+  private recalculateImportPhaseTotals(
+    importPhaseId: string,
+    data: StorageSchema
+  ): void {
+    const phaseIndex = data.importPhases.findIndex(
+      (p) => p.id === importPhaseId
+    );
+    if (phaseIndex === -1) {
+      return;
+    }
+
+    // Calculate total fees for this import phase
+    const phaseFees = data.importFees.filter(
+      (fee) => fee.importPhaseId === importPhaseId
+    );
+    const totalFees = phaseFees.reduce((sum, fee) => sum + fee.amount, 0);
+
+    // Update import phase
+    data.importPhases[phaseIndex].totalFees = totalFees;
+    data.importPhases[phaseIndex].finalCost =
+      data.importPhases[phaseIndex].totalCost + totalFees;
+    data.importPhases[phaseIndex].updatedAt = new Date();
+  }
+
+  // Channel Fee Structure methods (P2 Feature)
+  getChannelFeeStructures(): ChannelFeeStructure[] {
+    return this.getData().channelFeeStructures.sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+    );
+  }
+
+  getChannelFeeStructure(id: string): ChannelFeeStructure | undefined {
+    return this.getData().channelFeeStructures.find((cfs) => cfs.id === id);
+  }
+
+  getChannelFeeStructureByChannelId(
+    channelId: string
+  ): ChannelFeeStructure | undefined {
+    return this.getData().channelFeeStructures.find(
+      (cfs) => cfs.salesChannelId === channelId
+    );
+  }
+
+  saveChannelFeeStructure(
+    feeStructureData: Omit<
+      ChannelFeeStructure,
+      'id' | 'createdAt' | 'updatedAt'
+    >
+  ): ChannelFeeStructure {
+    const data = this.getData();
+
+    // Validate sales channel exists
+    const channel = data.salesChannels.find(
+      (c) => c.id === feeStructureData.salesChannelId
+    );
+    if (!channel) {
+      throw new Error('Sales channel not found');
+    }
+
+    // Check for duplicate channel fee structure
+    const existingStructure = data.channelFeeStructures.find(
+      (cfs) => cfs.salesChannelId === feeStructureData.salesChannelId
+    );
+    if (existingStructure) {
+      throw new Error(
+        `Channel fee structure already exists for channel ${channel.name}`
+      );
+    }
+
+    const newChannelFeeStructure: ChannelFeeStructure = {
+      ...feeStructureData,
+      id: this.generateId(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    data.channelFeeStructures.push(newChannelFeeStructure);
+    this.saveData(data);
+    return newChannelFeeStructure;
+  }
+
+  updateChannelFeeStructure(
+    id: string,
+    updates: Partial<
+      Omit<ChannelFeeStructure, 'id' | 'salesChannelId' | 'createdAt'>
+    >
+  ): ChannelFeeStructure {
+    const data = this.getData();
+
+    const structureIndex = data.channelFeeStructures.findIndex(
+      (cfs) => cfs.id === id
+    );
+    if (structureIndex === -1) {
+      throw new Error('Channel fee structure not found');
+    }
+
+    // Update the channel fee structure
+    data.channelFeeStructures[structureIndex] = {
+      ...data.channelFeeStructures[structureIndex],
+      ...updates,
+      updatedAt: new Date(),
+    };
+
+    this.saveData(data);
+    return data.channelFeeStructures[structureIndex];
+  }
+
+  deleteChannelFeeStructure(id: string): void {
+    const data = this.getData();
+
+    const structureIndex = data.channelFeeStructures.findIndex(
+      (cfs) => cfs.id === id
+    );
+    if (structureIndex === -1) {
+      throw new Error('Channel fee structure not found');
+    }
+
+    // Remove the channel fee structure
+    data.channelFeeStructures.splice(structureIndex, 1);
+    this.saveData(data);
+  }
+
+  /**
+   * Calculate fee amount for a revenue entry based on channel fee structure
+   * @param channelId - Sales channel ID
+   * @param revenueAmount - Revenue amount to calculate fee for
+   * @returns Calculated fee amount or 0 if no fee structure exists
+   */
+  calculateChannelFee(channelId: string, revenueAmount: number): number {
+    const feeStructure = this.getChannelFeeStructureByChannelId(channelId);
+    if (!feeStructure) {
+      return 0;
+    }
+
+    let calculatedFee = 0;
+
+    // Calculate percentage fee
+    if (feeStructure.percentageRate > 0) {
+      calculatedFee += (revenueAmount * feeStructure.percentageRate) / 100;
+    }
+
+    // Add fixed fee
+    if (feeStructure.fixedFee > 0) {
+      calculatedFee += feeStructure.fixedFee;
+    }
+
+    // Apply minimum fee constraint
+    if (feeStructure.minimumFee && calculatedFee < feeStructure.minimumFee) {
+      calculatedFee = feeStructure.minimumFee;
+    }
+
+    // Apply maximum fee constraint
+    if (feeStructure.maximumFee && calculatedFee > feeStructure.maximumFee) {
+      calculatedFee = feeStructure.maximumFee;
+    }
+
+    return Math.round(calculatedFee); // Round to nearest VND
   }
 
   // Transaction methods
@@ -1555,7 +1868,7 @@ class LocalStorageService {
       product.remainingQuantity.toString(),
       product.soldQuantity.toString(),
       product.purchasePrice.toFixed(2),
-      product.sellingPrice.toFixed(2),
+      product.sellingPrice?.toFixed(2) || 'Not set',
       product.createdAt.toISOString(),
     ]);
 

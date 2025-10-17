@@ -20,6 +20,7 @@ import { ImportPhaseForm } from '@/features/imports/components/ImportPhaseForm';
 import { AddProductsDialog } from '@/features/imports/components/AddProductsDialog';
 import { storageService } from '@/lib/storage';
 import type { ImportPhase, Product } from '@/types';
+import { formatVND } from '@/lib/currency';
 
 export default function ImportsPage() {
   const router = useRouter();
@@ -64,6 +65,8 @@ export default function ImportsPage() {
         code: data.code,
         date: new Date(data.date),
         description: data.description,
+        totalFees: 0, // P1: Initialize with zero fees
+        finalCost: 0, // P1: Initialize with zero final cost
       });
       setImportPhases((prev) => [newPhase, ...prev]);
       setShowNewPhaseForm(false);
@@ -220,10 +223,9 @@ export default function ImportsPage() {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-2xl font-bold text-purple-900">
-                $
-                {importPhases
-                  .reduce((sum, p) => sum + p.totalCost, 0)
-                  .toFixed(2)}
+                {formatVND(
+                  importPhases.reduce((sum, p) => sum + p.totalCost, 0)
+                )}
               </div>
               <div className="text-sm font-medium text-purple-700">
                 Total Investment

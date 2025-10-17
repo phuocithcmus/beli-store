@@ -10,6 +10,7 @@ import { Search, Edit2, Trash2, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { formatVND } from '@/lib/currency';
 import type { Product } from '@/types';
 
 interface ProductFilters {
@@ -68,7 +69,7 @@ export function ProductList({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Filters */}
       <div className="flex flex-col gap-4 rounded-lg bg-muted/50 p-4 sm:flex-row">
         <div className="flex-1">
@@ -180,16 +181,30 @@ export function ProductList({
                       </span>
                     </td>
                     <td className="p-4 text-right font-mono">
-                      ${product.purchasePrice.toFixed(2)}
+                      {formatVND(product.purchasePrice)}
                     </td>
                     <td className="p-4 text-right font-mono">
-                      ${product.sellingPrice.toFixed(2)}
+                      {product.sellingPrice ? (
+                        formatVND(product.sellingPrice)
+                      ) : (
+                        <span className="italic text-muted-foreground">
+                          Not set
+                        </span>
+                      )}
                     </td>
                     <td className="p-4 text-right font-mono font-medium">
-                      $
-                      {(
-                        product.remainingQuantity * product.sellingPrice
-                      ).toFixed(2)}
+                      {product.sellingPrice ? (
+                        formatVND(
+                          product.remainingQuantity * product.sellingPrice
+                        )
+                      ) : (
+                        <span className="italic text-muted-foreground">
+                          Cost:{' '}
+                          {formatVND(
+                            product.remainingQuantity * product.purchasePrice
+                          )}
+                        </span>
+                      )}
                     </td>
                     <td className="p-4">
                       <div className="flex items-center justify-center gap-1">

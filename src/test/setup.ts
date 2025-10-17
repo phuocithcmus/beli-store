@@ -29,14 +29,14 @@ Object.defineProperty(window, 'localStorage', {
 Object.defineProperty(global, 'crypto', {
   value: {
     randomUUID: () =>
-      'test-uuid-' + Math.random().toString(36).substring(2, 15),
+      `test-uuid-${Math.random().toString(36).substring(2, 15)}`,
   },
 });
 
 // Mock console.error to prevent noise in tests
 const originalError = console.error;
 beforeAll(() => {
-  console.error = (...args: any[]) => {
+  console.error = (...args: unknown[]) => {
     if (
       typeof args[0] === 'string' &&
       args[0].includes('Warning: ReactDOM.render is no longer supported')

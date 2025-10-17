@@ -22,6 +22,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import type { RevenueDialogProps } from '@/features/revenue/types/revenue';
 import type { ProductVariant } from '@/types';
+import { storageService } from '@/lib/storage';
+import { formatVND } from '@/lib/currency';
 
 // Simple date formatter
 const formatDate = (date: Date): string => {
@@ -301,6 +303,57 @@ export function RevenueDialog({
               </p>
             )}
           </div>
+
+          {/* Channel Fee Preview */}
+          {(() => {
+            const amount = watch('amount');
+            const selectedChannelId = watch('salesChannel');
+
+            if (amount && selectedChannelId && !isNaN(parseFloat(amount))) {
+              const grossAmount = parseFloat(amount);
+              const channelFee = storageService.calculateChannelFee(
+                selectedChannelId,
+                grossAmount
+              );
+              const netAmount = grossAmount - channelFee;
+              const selectedChannel = salesChannels.find(
+                (c) => c.id === selectedChannelId
+              );
+
+              if (channelFee > 0) {
+                return (
+                  <div className="rounded-md border border-blue-200 bg-blue-50 p-3">
+                    <h4 className="mb-2 font-medium text-blue-900">
+                      Fee Calculation - {selectedChannel?.name}
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-blue-700">Gross Revenue:</span>
+                        <span className="font-medium">
+                          {formatVND(grossAmount)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-red-700">Channel Fee:</span>
+                        <span className="font-medium text-red-600">
+                          -{formatVND(channelFee)}
+                        </span>
+                      </div>
+                      <div className="col-span-2 flex justify-between border-t border-blue-200 pt-1">
+                        <span className="font-medium text-green-700">
+                          Net Revenue:
+                        </span>
+                        <span className="font-bold text-green-600">
+                          {formatVND(netAmount)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+            }
+            return null;
+          })()}
 
           {/* Sale Date */}
           <div className="space-y-2">

@@ -223,7 +223,7 @@ export function ProductVariantManager({
   const stockCounts = getStockStatusCounts();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header */}
       <Card>
         <CardHeader>

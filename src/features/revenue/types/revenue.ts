@@ -41,10 +41,14 @@ export interface AnalyticsFilters {
 export interface RevenueAnalyticsData {
   // Summary metrics
   totalRevenue: number;
+  totalNetRevenue?: number;
+  totalChannelFees?: number;
   totalQuantity: number;
   totalProfit: number;
   totalOrders: number;
   averageOrderValue: number;
+  averageNetOrderValue?: number;
+  averageFeePerOrder?: number;
 
   // Growth metrics
   revenueGrowth: number;
@@ -69,15 +73,20 @@ export interface RevenueAnalyticsData {
     averageOrderValue: number;
   }[];
 
-  // Channel performance
+  // Channel performance with P2 fee integration
   channelPerformance: {
     id: string;
     name: string;
     revenue: number;
+    netRevenue?: number;
+    totalFees?: number;
     orders: number;
     conversionRate: number;
     averageOrderValue: number;
+    averageNetOrderValue?: number;
+    averageFeePerTransaction?: number;
     marketShare: number;
+    netMarketShare?: number;
     commissionRate: number;
   }[];
 

@@ -20,6 +20,8 @@ export class SalesChannelService {
         productVariants: [],
         revenueEntries: [],
         salesChannels: [],
+        importFees: [],
+        channelFeeStructures: [],
         metadata: {
           version: '1.0.0',
           lastBackup: new Date(),
@@ -30,6 +32,8 @@ export class SalesChannelService {
           },
           schemaVersion: 2,
           variantSystemEnabled: true,
+          feeSystemEnabled: true,
+          channelFeeSystemEnabled: true,
         },
       };
     }
@@ -96,6 +100,8 @@ export class SalesChannelService {
           metadata: { platform: 'direct', commission: 0 },
         },
       ],
+      importFees: [],
+      channelFeeStructures: [],
       metadata: {
         version: '1.0.0',
         lastBackup: new Date(),
@@ -106,6 +112,8 @@ export class SalesChannelService {
         },
         schemaVersion: 2,
         variantSystemEnabled: true,
+        feeSystemEnabled: true,
+        channelFeeSystemEnabled: true,
       },
     };
   }
@@ -151,7 +159,7 @@ export class SalesChannelService {
   createSalesChannel(channelData: {
     name: string;
     type: 'online' | 'manual' | 'partner';
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }): ApiResponse<SalesChannel> {
     try {
       const data = this.getData();
@@ -206,7 +214,7 @@ export class SalesChannelService {
       name?: string;
       type?: 'online' | 'manual' | 'partner';
       isActive?: boolean;
-      metadata?: Record<string, any>;
+      metadata?: Record<string, unknown>;
     }
   ): ApiResponse<SalesChannel> {
     try {
@@ -228,7 +236,7 @@ export class SalesChannelService {
       if (updates.name && updates.name !== currentChannel.name) {
         const existingChannel = data.salesChannels.find(
           (channel) =>
-            channel.name.toLowerCase() === updates.name!.toLowerCase() &&
+            channel.name.toLowerCase() === updates.name?.toLowerCase() &&
             channel.id !== id
         );
 
