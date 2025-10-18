@@ -44,7 +44,7 @@ export default function SalesAnalyticsPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 p-6">
+      <ResponsiveWrapper>
         <div className="flex h-64 items-center justify-center">
           <div className="text-center">
             <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>
@@ -53,7 +53,7 @@ export default function SalesAnalyticsPage() {
             </p>
           </div>
         </div>
-      </div>
+      </ResponsiveWrapper>
     );
   }
 
@@ -141,11 +141,27 @@ export default function SalesAnalyticsPage() {
 
       {/* Analytics Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="performance">Performance</TabsTrigger>
-          <TabsTrigger value="top-performers">Top Performers</TabsTrigger>
-          <TabsTrigger value="insights">Business Insights</TabsTrigger>
+        <TabsList
+          className={`grid w-full ${isMobile ? 'grid-cols-2' : 'grid-cols-4'}`}
+        >
+          <TabsTrigger value="overview" className={isMobile ? 'text-xs' : ''}>
+            {isMobile ? 'Overview' : 'Overview'}
+          </TabsTrigger>
+          <TabsTrigger
+            value="performance"
+            className={isMobile ? 'text-xs' : ''}
+          >
+            {isMobile ? 'Performance' : 'Performance'}
+          </TabsTrigger>
+          <TabsTrigger
+            value="top-performers"
+            className={isMobile ? 'text-xs' : ''}
+          >
+            {isMobile ? 'Top' : 'Top Performers'}
+          </TabsTrigger>
+          <TabsTrigger value="insights" className={isMobile ? 'text-xs' : ''}>
+            {isMobile ? 'Insights' : 'Business Insights'}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-6">
@@ -342,7 +358,9 @@ export default function SalesAnalyticsPage() {
         </TabsContent>
 
         <TabsContent value="insights" className="mt-6">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <div
+            className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}
+          >
             {/* ABC Analysis */}
             <Card>
               <CardHeader>

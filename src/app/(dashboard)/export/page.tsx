@@ -10,10 +10,8 @@ import { ResponsiveWrapper } from '@/components/layout/ResponsiveWrapper';
 
 export default function ExportPage() {
   return (
-    <main className="min-h-screen bg-background">
-      <ResponsiveWrapper>
-        <ExportDashboard />
-      </ResponsiveWrapper>
-    </main>
+    <ResponsiveWrapper>
+      <ExportDashboard />
+    </ResponsiveWrapper>
   );
 }

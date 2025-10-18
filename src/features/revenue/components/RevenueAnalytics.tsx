@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useIsMobile } from '@/hooks/useResponsive';
 import {
   Select,
   SelectContent,
@@ -95,6 +96,7 @@ export function RevenueAnalytics({
   onPeriodChange?: (period: RevenuePeriod) => void;
   onRefresh?: () => void;
 }) {
+  const isMobile = useIsMobile();
   // Fetch revenue entries for profit analysis
   const [revenueEntries, setRevenueEntries] = useState<RevenueEntry[]>([]);
 
@@ -132,10 +134,12 @@ export function RevenueAnalytics({
   if (loading || !data) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div
+          className={`grid gap-4 ${isMobile ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-4'}`}
+        >
           {Array.from({ length: 4 }).map((_, i) => (
             <Card key={i}>
-              <CardContent className="p-6">
+              <CardContent className={isMobile ? 'p-4' : 'p-6'}>
                 <div className="animate-pulse">
                   <div className="mb-2 h-4 w-1/2 rounded bg-gray-200"></div>
                   <div className="h-8 w-3/4 rounded bg-gray-200"></div>
@@ -149,18 +153,22 @@ export function RevenueAnalytics({
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className={`space-y-6 ${isMobile ? 'p-4' : 'p-6'}`}>
       {/* Header Controls */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Revenue Analytics</h2>
-        <div className="flex items-center gap-4">
+      <div
+        className={`flex ${isMobile ? 'flex-col gap-4' : 'items-center justify-between'}`}
+      >
+        <h2 className={`font-bold ${isMobile ? 'text-xl' : 'text-2xl'}`}>
+          Revenue Analytics
+        </h2>
+        <div className={`flex gap-4 ${isMobile ? 'flex-col' : 'items-center'}`}>
           {/* Period Selector */}
           {onPeriodChange && (
             <Select
               value={period}
               onValueChange={(value) => onPeriodChange(value as RevenuePeriod)}
             >
-              <SelectTrigger className="w-[120px]">
+              <SelectTrigger className={isMobile ? 'w-full' : 'w-[120px]'}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -174,7 +182,12 @@ export function RevenueAnalytics({
 
           {/* Refresh Button */}
           {onRefresh && (
-            <Button variant="outline" size="sm" onClick={onRefresh}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRefresh}
+              className={isMobile ? 'w-full' : ''}
+            >
               <RefreshCw className="mr-2 h-4 w-4" />
               Refresh
             </Button>
@@ -183,73 +196,107 @@ export function RevenueAnalytics({
       </div>
 
       {/* Key Metrics - Enhanced with P2 Net Revenue */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div
+        className={`grid gap-4 ${isMobile ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'}`}
+      >
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">
+          <CardContent className={isMobile ? 'p-4' : 'p-6'}>
+            <div
+              className={`flex ${isMobile ? 'flex-col gap-2' : 'items-center justify-between'}`}
+            >
+              <div className={isMobile ? 'w-full' : ''}>
+                <p
+                  className={`font-medium text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}
+                >
                   Gross Revenue
                 </p>
-                <p className="text-2xl font-bold">
+                <p className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'}`}>
                   {formatCurrency(data.totalRevenue)}
                 </p>
-                <GrowthIndicator growth={data.revenueGrowth} />
+                <div className={isMobile ? 'mt-1' : ''}>
+                  <GrowthIndicator growth={data.revenueGrowth} />
+                </div>
               </div>
-              <DollarSign className="h-8 w-8 text-green-600" />
+              {!isMobile && <DollarSign className="h-8 w-8 text-green-600" />}
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Net Revenue</p>
-                <p className="text-2xl font-bold text-green-600">
+          <CardContent className={isMobile ? 'p-4' : 'p-6'}>
+            <div
+              className={`flex ${isMobile ? 'flex-col gap-2' : 'items-center justify-between'}`}
+            >
+              <div className={isMobile ? 'w-full' : ''}>
+                <p
+                  className={`font-medium text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}
+                >
+                  Net Revenue
+                </p>
+                <p
+                  className={`font-bold text-green-600 ${isMobile ? 'text-lg' : 'text-2xl'}`}
+                >
                   {formatCurrency(data.totalNetRevenue || data.totalRevenue)}
                 </p>
-                <p className="mt-1 text-xs text-gray-500">After channel fees</p>
+                <p
+                  className={`text-gray-500 ${isMobile ? 'mt-1 text-xs' : 'mt-1 text-xs'}`}
+                >
+                  After channel fees
+                </p>
               </div>
-              <DollarSign className="h-8 w-8 text-green-700" />
+              {!isMobile && <DollarSign className="h-8 w-8 text-green-700" />}
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">
+          <CardContent className={isMobile ? 'p-4' : 'p-6'}>
+            <div
+              className={`flex ${isMobile ? 'flex-col gap-2' : 'items-center justify-between'}`}
+            >
+              <div className={isMobile ? 'w-full' : ''}>
+                <p
+                  className={`font-medium text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}
+                >
                   Channel Fees
                 </p>
-                <p className="text-2xl font-bold text-red-600">
+                <p
+                  className={`font-bold text-red-600 ${isMobile ? 'text-lg' : 'text-2xl'}`}
+                >
                   {formatCurrency(data.totalChannelFees || 0)}
                 </p>
-                <p className="mt-1 text-xs text-gray-500">
+                <p
+                  className={`text-gray-500 ${isMobile ? 'mt-1 text-xs' : 'mt-1 text-xs'}`}
+                >
                   {data.totalRevenue > 0
                     ? `${(((data.totalChannelFees || 0) / data.totalRevenue) * 100).toFixed(1)}% of gross`
                     : '0% of gross'}
                 </p>
               </div>
-              <Target className="h-8 w-8 text-red-600" />
+              {!isMobile && <Target className="h-8 w-8 text-red-600" />}
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">
+          <CardContent className={isMobile ? 'p-4' : 'p-6'}>
+            <div
+              className={`flex ${isMobile ? 'flex-col gap-2' : 'items-center justify-between'}`}
+            >
+              <div className={isMobile ? 'w-full' : ''}>
+                <p
+                  className={`font-medium text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}
+                >
                   Total Orders
                 </p>
-                <p className="text-2xl font-bold">
+                <p className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'}`}>
                   {formatNumber(data.totalOrders)}
                 </p>
-                <GrowthIndicator growth={data.quantityGrowth} />
+                <div className={isMobile ? 'mt-1' : ''}>
+                  <GrowthIndicator growth={data.quantityGrowth} />
+                </div>
               </div>
-              <ShoppingCart className="h-8 w-8 text-blue-600" />
+              {!isMobile && <ShoppingCart className="h-8 w-8 text-blue-600" />}
             </div>
           </CardContent>
         </Card>

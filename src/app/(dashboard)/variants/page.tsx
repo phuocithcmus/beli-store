@@ -215,19 +215,19 @@ export default function VariantsPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6 p-6">
+      <ResponsiveWrapper>
         <div className="flex h-64 items-center justify-center">
           <div className="text-center">
             <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>
             <p className="mt-4 text-muted-foreground">Loading variants...</p>
           </div>
         </div>
-      </div>
+      </ResponsiveWrapper>
     );
   }
 
   return (
-    <ResponsiveWrapper>
+    <ResponsiveWrapper className={`${isMobile ? 'flex flex-col gap-4' : ''}`}>
       {/* Header */}
       <div
         className={`flex ${isMobile ? 'flex-col gap-4' : 'items-center justify-between'}`}
@@ -242,14 +242,16 @@ export default function VariantsPage() {
             Manage variants across all products in your inventory
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className={`flex gap-2 ${isMobile ? 'flex-col' : 'items-center'}`}>
           {products.length > 0 && (
-            <div className="flex items-center gap-2">
+            <div
+              className={`flex gap-2 ${isMobile ? 'flex-col' : 'items-center'}`}
+            >
               <Select
                 value={selectedProductId}
                 onValueChange={setSelectedProductId}
               >
-                <SelectTrigger className="w-48">
+                <SelectTrigger className={isMobile ? 'w-full' : 'w-48'}>
                   <SelectValue placeholder="Select product..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -355,9 +357,11 @@ export default function VariantsPage() {
       {/* Controls */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div
+            className={`flex gap-4 ${isMobile ? 'flex-col' : 'flex-row items-center justify-between'}`}
+          >
             {/* Search */}
-            <div className="max-w-sm flex-1">
+            <div className={`${isMobile ? 'w-full' : 'max-w-sm flex-1'}`}>
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -370,13 +374,17 @@ export default function VariantsPage() {
             </div>
 
             {/* Filters and Controls */}
-            <div className="flex items-center gap-2">
+            <div
+              className={`flex gap-2 ${isMobile ? 'flex-wrap' : 'items-center'}`}
+            >
               {/* Stock Filter */}
               <Select
                 value={filterBy}
                 onValueChange={(value) => setFilterBy(value as FilterOption)}
               >
-                <SelectTrigger className="w-32">
+                <SelectTrigger
+                  className={isMobile ? 'w-full min-w-[140px]' : 'w-32'}
+                >
                   <Filter className="mr-2 h-4 w-4" />
                   <SelectValue />
                 </SelectTrigger>
@@ -393,7 +401,9 @@ export default function VariantsPage() {
                 value={sortBy}
                 onValueChange={(value) => setSortBy(value as SortOption)}
               >
-                <SelectTrigger className="w-32">
+                <SelectTrigger
+                  className={isMobile ? 'w-full min-w-[140px]' : 'w-32'}
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -407,12 +417,14 @@ export default function VariantsPage() {
               </Select>
 
               {/* View Toggle */}
-              <div className="flex rounded-md border">
+              <div
+                className={`flex rounded-md border ${isMobile ? 'w-full' : ''}`}
+              >
                 <Button
                   variant={viewMode === 'list' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode('list')}
-                  className="px-3"
+                  className={`${isMobile ? 'flex-1' : 'px-3'}`}
                 >
                   <List className="h-4 w-4" />
                 </Button>
@@ -420,7 +432,7 @@ export default function VariantsPage() {
                   variant={viewMode === 'grid' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode('grid')}
-                  className="px-3"
+                  className={`${isMobile ? 'flex-1' : 'px-3'}`}
                 >
                   <Grid className="h-4 w-4" />
                 </Button>
@@ -658,7 +670,9 @@ export default function VariantsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div
+          className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}
+        >
           {filteredVariants.map((variant) => {
             const product = products.find((p) => p.id === variant.productId);
             return (

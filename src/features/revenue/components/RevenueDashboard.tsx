@@ -15,6 +15,8 @@ import { RevenueAnalytics } from './RevenueAnalytics';
 import { useRevenue } from '@/features/revenue/hooks/useRevenue';
 import { useRevenueAnalytics } from '@/features/revenue/hooks/useRevenueAnalytics';
 import { useSalesChannels } from '@/features/revenue/hooks/useSalesChannels';
+import { useIsMobile } from '@/hooks/useResponsive';
+import { ResponsiveGrid } from '@/components/layout/ResponsiveWrapper';
 import { storageService } from '@/lib/storage';
 import type {
   RevenueEntry,
@@ -26,6 +28,7 @@ import type { RevenuePeriod } from '@/features/revenue/types/revenue';
 import { formatVND } from '@/lib/currency';
 
 export function RevenueDashboard() {
+  const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<
     'overview' | 'entries' | 'analytics'
   >('overview');
@@ -114,18 +117,25 @@ export function RevenueDashboard() {
   const averageOrderValue = totalEntries > 0 ? totalRevenue / totalEntries : 0;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className={`space-y-6 ${isMobile ? 'p-4' : 'p-6'}`}>
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div
+        className={`flex ${isMobile ? 'flex-col gap-4' : 'items-center justify-between'}`}
+      >
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1
+            className={`font-bold tracking-tight ${isMobile ? 'text-2xl' : 'text-3xl'}`}
+          >
             Revenue Tracking
           </h1>
           <p className="text-muted-foreground">
             Track sales performance across all channels
           </p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)}>
+        <Button
+          onClick={() => setIsDialogOpen(true)}
+          className={isMobile ? 'w-full' : ''}
+        >
           <Plus className="mr-2 h-4 w-4" />
           Add Revenue Entry
         </Button>
@@ -135,30 +145,30 @@ export function RevenueDashboard() {
       <div className="flex space-x-1 rounded-lg bg-muted p-1">
         <Button
           variant={activeTab === 'overview' ? 'default' : 'ghost'}
-          size="sm"
+          size={isMobile ? 'sm' : 'sm'}
           onClick={() => setActiveTab('overview')}
-          className="flex-1"
+          className={`flex-1 ${isMobile ? 'px-2' : ''}`}
         >
-          <BarChart3 className="mr-2 h-4 w-4" />
-          Overview
+          <BarChart3 className={`h-4 w-4 ${isMobile ? '' : 'mr-2'}`} />
+          {!isMobile && 'Overview'}
         </Button>
         <Button
           variant={activeTab === 'entries' ? 'default' : 'ghost'}
-          size="sm"
+          size={isMobile ? 'sm' : 'sm'}
           onClick={() => setActiveTab('entries')}
-          className="flex-1"
+          className={`flex-1 ${isMobile ? 'px-2' : ''}`}
         >
-          <Filter className="mr-2 h-4 w-4" />
-          Entries
+          <Filter className={`h-4 w-4 ${isMobile ? '' : 'mr-2'}`} />
+          {!isMobile && 'Entries'}
         </Button>
         <Button
           variant={activeTab === 'analytics' ? 'default' : 'ghost'}
-          size="sm"
+          size={isMobile ? 'sm' : 'sm'}
           onClick={() => setActiveTab('analytics')}
-          className="flex-1"
+          className={`flex-1 ${isMobile ? 'px-2' : ''}`}
         >
-          <TrendingUp className="mr-2 h-4 w-4" />
-          Analytics
+          <TrendingUp className={`h-4 w-4 ${isMobile ? '' : 'mr-2'}`} />
+          {!isMobile && 'Analytics'}
         </Button>
       </div>
 
@@ -166,71 +176,96 @@ export function RevenueDashboard() {
       {activeTab === 'overview' && (
         <div className="space-y-6">
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <ResponsiveGrid columns={{ xs: 2, md: 4 }} className="gap-4">
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">
+              <CardHeader className={`pb-2 ${isMobile ? 'p-3' : ''}`}>
+                <CardTitle
+                  className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}
+                >
                   Total Revenue
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
+              <CardContent className={isMobile ? 'p-3 pt-0' : ''}>
+                <div
+                  className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'}`}
+                >
                   {formatVND(totalRevenue)}
                 </div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">
+              <CardHeader className={`pb-2 ${isMobile ? 'p-3' : ''}`}>
+                <CardTitle
+                  className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}
+                >
                   Total Entries
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{totalEntries}</div>
+              <CardContent className={isMobile ? 'p-3 pt-0' : ''}>
+                <div
+                  className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'}`}
+                >
+                  {totalEntries}
+                </div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">
+              <CardHeader className={`pb-2 ${isMobile ? 'p-3' : ''}`}>
+                <CardTitle
+                  className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}
+                >
                   Items Sold
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{totalQuantity}</div>
+              <CardContent className={isMobile ? 'p-3 pt-0' : ''}>
+                <div
+                  className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'}`}
+                >
+                  {totalQuantity}
+                </div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">
+              <CardHeader className={`pb-2 ${isMobile ? 'p-3' : ''}`}>
+                <CardTitle
+                  className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}
+                >
                   Avg Order Value
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
+              <CardContent className={isMobile ? 'p-3 pt-0' : ''}>
+                <div
+                  className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'}`}
+                >
                   {formatVND(averageOrderValue)}
                 </div>
               </CardContent>
             </Card>
-          </div>
+          </ResponsiveGrid>
 
           {/* Recent Entries */}
           <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Recent Revenue Entries</CardTitle>
+            <CardHeader className={isMobile ? 'p-4' : ''}>
+              <div
+                className={`flex ${isMobile ? 'flex-col gap-2' : 'items-center justify-between'}`}
+              >
+                <CardTitle className={isMobile ? 'text-lg' : ''}>
+                  Recent Revenue Entries
+                </CardTitle>
                 <Button
                   variant="outline"
-                  size="sm"
+                  size={isMobile ? 'sm' : 'sm'}
                   onClick={() => setActiveTab('entries')}
+                  className={isMobile ? 'w-full' : ''}
                 >
                   View All
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className={isMobile ? 'p-4 pt-0' : ''}>
               <RevenueList
                 entries={entries.slice(0, 5)}
                 onEdit={handleEditEntry}

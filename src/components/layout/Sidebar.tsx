@@ -26,8 +26,9 @@ const navigation = [
   { name: 'Variants', href: '/variants', icon: SquareKanban },
   { name: 'Imports', href: '/imports', icon: Import },
   { name: 'Revenue', href: '/revenue', icon: DollarSign },
-  { name: 'Sale Analysis', href: '/analysis/sales', icon: BadgeDollarSign },
-  { name: 'Reports', href: '/exports', icon: FileText },
+  { name: 'Sale Analysis', href: '/analytics/sales', icon: BadgeDollarSign },
+  { name: 'Fees', href: '/fees', icon: DollarSign },
+  { name: 'Reports', href: '/export', icon: FileText },
 ];
 
 interface SidebarProps {

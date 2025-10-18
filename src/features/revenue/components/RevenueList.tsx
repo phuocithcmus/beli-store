@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useIsMobile } from '@/hooks/useResponsive';
 import {
   Select,
   SelectContent,
@@ -46,6 +47,7 @@ export function RevenueList({
   loading = false,
   error,
 }: RevenueListProps) {
+  const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState('');
   const [channelFilter, setChannelFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'quantity'>('date');
@@ -148,46 +150,70 @@ export function RevenueList({
   return (
     <div className="space-y-4">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div
+        className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3'}`}
+      >
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Entries</CardTitle>
+          <CardHeader className={`pb-2 ${isMobile ? 'p-3' : ''}`}>
+            <CardTitle
+              className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}
+            >
+              Total Entries
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalEntries}</div>
+          <CardContent className={isMobile ? 'p-3 pt-0' : ''}>
+            <div className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'}`}>
+              {totalEntries}
+            </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+          <CardHeader className={`pb-2 ${isMobile ? 'p-3' : ''}`}>
+            <CardTitle
+              className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}
+            >
+              Total Revenue
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatVND(totalRevenue)}</div>
+          <CardContent className={isMobile ? 'p-3 pt-0' : ''}>
+            <div className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'}`}>
+              {formatVND(totalRevenue)}
+            </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">
+          <CardHeader className={`pb-2 ${isMobile ? 'p-3' : ''}`}>
+            <CardTitle
+              className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}
+            >
               Total Quantity
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalQuantity}</div>
+          <CardContent className={isMobile ? 'p-3 pt-0' : ''}>
+            <div className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'}`}>
+              {totalQuantity}
+            </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Filters and Search */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col gap-4 sm:flex-row">
+        <CardContent className={isMobile ? 'p-3' : 'p-4'}>
+          <div
+            className={`flex gap-4 ${isMobile ? 'flex-col' : 'flex-col sm:flex-row'}`}
+          >
             {/* Search */}
-            <div className="relative flex-1">
+            <div className={`relative ${isMobile ? 'w-full' : 'flex-1'}`}>
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
               <Input
-                placeholder="Search by product, channel, or notes..."
+                placeholder={
+                  isMobile
+                    ? 'Search...'
+                    : 'Search by product, channel, or notes...'
+                }
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -195,10 +221,12 @@ export function RevenueList({
             </div>
 
             {/* Channel Filter */}
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-gray-400" />
+            <div
+              className={`flex gap-2 ${isMobile ? 'w-full' : 'items-center'}`}
+            >
+              {!isMobile && <Filter className="h-4 w-4 text-gray-400" />}
               <Select value={channelFilter} onValueChange={setChannelFilter}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className={isMobile ? 'w-full' : 'w-[180px]'}>
                   <SelectValue placeholder="Filter by channel" />
                 </SelectTrigger>
                 <SelectContent>
@@ -224,7 +252,7 @@ export function RevenueList({
                 setSortDirection(direction);
               }}
             >
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className={isMobile ? 'w-full' : 'w-[160px]'}>
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
@@ -246,10 +274,12 @@ export function RevenueList({
 
       {/* Revenue Entries Table */}
       <Card>
-        <CardHeader>
-          <CardTitle>Revenue Entries</CardTitle>
+        <CardHeader className={isMobile ? 'p-4' : ''}>
+          <CardTitle className={isMobile ? 'text-lg' : ''}>
+            Revenue Entries
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className={isMobile ? 'p-4 pt-0' : ''}>
           {loading ? (
             <div className="py-8 text-center">
               <p>Loading revenue entries...</p>
