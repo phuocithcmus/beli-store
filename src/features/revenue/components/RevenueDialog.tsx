@@ -24,6 +24,9 @@ import type { RevenueDialogProps } from '@/features/revenue/types/revenue';
 import type { ProductVariant } from '@/types';
 import { storageService } from '@/lib/storage';
 import { formatVND } from '@/lib/currency';
+import { ImportPhaseSelector } from './ImportPhaseSelector';
+import { ProfitDisplay } from './ProfitDisplay';
+import { useAvailableImportPhases } from '../hooks/useAvailableImportPhases';
 
 // Simple date formatter
 const formatDate = (date: Date): string => {
@@ -31,21 +34,53 @@ const formatDate = (date: Date): string => {
 };
 
 // Form validation schema
-const revenueFormSchema = z.object({
-  productId: z.string().min(1, 'Product is required'),
-  productVariantId: z.string().optional(),
-  amount: z
-    .string()
-    .min(1, 'Amount is required')
-    .regex(/^\d+(\.\d{1,2})?$/, 'Invalid amount format'),
-  quantity: z
-    .string()
-    .min(1, 'Quantity is required')
-    .regex(/^\d+$/, 'Quantity must be a whole number'),
-  salesChannel: z.string().min(1, 'Sales channel is required'),
-  saleDate: z.string().min(1, 'Sale date is required'),
-  notes: z.string().optional(),
-});
+const revenueFormSchema = z
+  .object({
+    productId: z.string().min(1, 'Product is required'),
+    productVariantId: z.string().optional(),
+    importPhaseId: z.string().optional(),
+    amount: z
+      .string()
+      .min(1, 'Amount is required')
+      .regex(/^\d+(\.\d{1,2})?$/, 'Invalid amount format'),
+    quantity: z
+      .string()
+      .min(1, 'Quantity is required')
+      .regex(/^\d+$/, 'Quantity must be a whole number'),
+    salesChannel: z.string().min(1, 'Sales channel is required'),
+    saleDate: z.string().min(1, 'Sale date is required'),
+    notes: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      // Validate import phase if provided
+      if (data.importPhaseId && data.productId) {
+        try {
+          // Check if import phase exists and is available for the product
+          const availablePhases = storageService.getAvailableImportPhases(
+            data.productId
+          );
+          const selectedPhase = availablePhases.find(
+            (phase) => phase.id === data.importPhaseId
+          );
+
+          if (!selectedPhase) {
+            return false; // Import phase not found or not available for this product
+          }
+
+          return true;
+        } catch (error) {
+          return false; // Error accessing import phase data
+        }
+      }
+      return true; // No import phase specified, validation passes
+    },
+    {
+      message:
+        'Selected import phase is not available or has insufficient quantity',
+      path: ['importPhaseId'],
+    }
+  );
 
 type FormData = z.infer<typeof revenueFormSchema>;
 
@@ -78,6 +113,7 @@ export function RevenueDialog({
     defaultValues: {
       productId: '',
       productVariantId: 'none',
+      importPhaseId: '',
       amount: '',
       quantity: '',
       salesChannel: '',
@@ -87,6 +123,12 @@ export function RevenueDialog({
   });
 
   const watchedProductId = watch('productId');
+
+  // Get available import phases for the selected product
+  const { availablePhases } = useAvailableImportPhases({
+    productId: watchedProductId,
+    enabled: !!watchedProductId,
+  });
 
   // Update available variants when product changes
   useEffect(() => {
@@ -107,6 +149,7 @@ export function RevenueDialog({
     if (editingEntry) {
       setValue('productId', editingEntry.productId);
       setValue('productVariantId', editingEntry.productVariantId || 'none');
+      setValue('importPhaseId', editingEntry.importPhaseId || '');
       setValue('amount', editingEntry.amount.toString());
       setValue('quantity', editingEntry.quantity.toString());
       setValue('salesChannel', editingEntry.salesChannel);
@@ -128,10 +171,12 @@ export function RevenueDialog({
       setSaving(true);
 
       // Convert "none" back to empty string for productVariantId
+      // and handle empty importPhaseId
       const processedData = {
         ...data,
         productVariantId:
           data.productVariantId === 'none' ? '' : data.productVariantId,
+        importPhaseId: data.importPhaseId || undefined,
       };
 
       await onSave(processedData);
@@ -226,7 +271,7 @@ export function RevenueDialog({
                   <SelectItem value="none">No specific variant</SelectItem>
                   {availableVariants.map((variant) => (
                     <SelectItem key={variant.id} value={variant.id}>
-                      <div className="flex flex-col">
+                      <div className="flex flex-col items-start justify-start">
                         <span className="font-medium">
                           {variant.color} / {variant.size} / {variant.form}
                         </span>
@@ -251,15 +296,43 @@ export function RevenueDialog({
             </div>
           )}
 
+          {/* Import Phase Selection */}
+          {watchedProductId && (
+            <div className="space-y-2">
+              <ImportPhaseSelector
+                productId={watchedProductId}
+                value={watch('importPhaseId') || ''}
+                onChange={(value) => setValue('importPhaseId', value)}
+                availablePhases={availablePhases}
+              />
+              {errors.importPhaseId && (
+                <p className="text-sm text-red-500">
+                  {errors.importPhaseId.message}
+                </p>
+              )}
+              <div className="text-xs text-muted-foreground">
+                Link this sale to a specific import phase for accurate profit
+                calculation. Leave empty if import phase tracking is not needed.
+              </div>
+            </div>
+          )}
+
           {/* Amount */}
           <div className="space-y-2">
-            <Label htmlFor="amount">Amount *</Label>
-            <Input
-              id="amount"
-              type="text"
-              placeholder="0.00"
-              {...register('amount')}
-            />
+            <Label htmlFor="amount">Price *</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">
+                VND
+              </span>
+              <Input
+                id="amount"
+                type="number"
+                placeholder="0.00"
+                className="pl-12 "
+                {...register('amount')}
+              />
+            </div>
+
             {errors.amount && (
               <p className="text-sm text-red-600">{errors.amount.message}</p>
             )}
@@ -270,10 +343,11 @@ export function RevenueDialog({
             <Label htmlFor="quantity">Quantity *</Label>
             <Input
               id="quantity"
-              type="text"
+              type="number"
               placeholder="1"
               {...register('quantity')}
             />
+
             {errors.quantity && (
               <p className="text-sm text-red-600">{errors.quantity.message}</p>
             )}
@@ -395,6 +469,18 @@ export function RevenueDialog({
             </Button>
           </div>
         </form>
+
+        {/* Profit Breakdown Section - Shows for existing entries with import phase data */}
+        {editingEntry && editingEntry.importPhaseId && (
+          <div className="mt-6 border-t pt-6">
+            <h3 className="mb-4 text-lg font-semibold">Profit Analysis</h3>
+            <ProfitDisplay
+              entry={editingEntry}
+              variant="detailed"
+              showBreakdown={true}
+            />
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

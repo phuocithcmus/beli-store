@@ -1,178 +1,186 @@
-/**
- * Fee Management Demo Page
- * Demonstrates P1 (Import Fees) and P2 (Channel Fees) features working together
- *
- * This page shows:
- * - Import fee management (P1)
- * - Channel fee configuration (P2)
- * - Fee calculation examples
- * - VND currency formatting throughout
- */
-
 'use client';
 
-import { useState, useEffect } from 'react';
-import { ArrowRight, Calculator, DollarSign, TrendingUp } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  ResponsiveWrapper,
+  ResponsiveGrid,
+} from '@/components/layout/ResponsiveWrapper';
+import { useIsMobile } from '@/hooks/useResponsive';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChannelFeeManager } from '@/features/channels/components/ChannelFeeManager';
-import { formatVND } from '@/lib/currency';
 import { storageService } from '@/lib/storage';
-import type {
-  ChannelFeeStructure,
-  ChannelFeeFormData,
-  SalesChannel,
-  ImportPhase,
-  ImportFee,
-} from '@/types';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FeeSummaryDashboard } from '@/features/fees/components/FeeSummaryDashboard';
+import { FeeCalculator } from '@/features/fees/components/FeeCalculator';
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Calculator,
+  BarChart3,
+  FileSpreadsheet,
+} from 'lucide-react';
 
-export default function FeeManagementDemo() {
-  const [channelFeeStructures, setChannelFeeStructures] = useState<
-    ChannelFeeStructure[]
-  >([]);
-  const [salesChannels, setSalesChannels] = useState<SalesChannel[]>([]);
-  const [importPhases, setImportPhases] = useState<ImportPhase[]>([]);
-  const [importFees, setImportFees] = useState<ImportFee[]>([]);
-  const [loading, setLoading] = useState(true);
+// Use the types from the main types file
+import type { ChannelFeeStructure, SalesChannel } from '@/types';
 
+export default function FeeManagementPage() {
+  const isMobile = useIsMobile();
+  const [channels, setChannels] = useState<SalesChannel[]>([]);
+  const [channelFees, setChannelFees] = useState<ChannelFeeStructure[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [editingFee, setEditingFee] = useState<ChannelFeeStructure | null>(
+    null
+  );
+  const [showForm, setShowForm] = useState(false);
+  const [activeTab, setActiveTab] = useState('channel-fees');
+
+  // Form states
+  const [formData, setFormData] = useState({
+    salesChannelId: '',
+    percentageRate: '',
+    fixedFee: '',
+    minimumFee: '',
+    maximumFee: '',
+  });
+
+  // Load data on component mount
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
+    setIsLoading(true);
     try {
-      setLoading(true);
-
-      // Load all data
-      const [channels, structures, phases, fees] = await Promise.all([
-        Promise.resolve(storageService.getSalesChannels?.() || []),
-        Promise.resolve(storageService.getChannelFeeStructures()),
-        Promise.resolve(storageService.getImportPhases()),
-        Promise.resolve(storageService.getImportFees()),
+      const [channelsData, feesData] = await Promise.all([
+        storageService.getSalesChannels(),
+        storageService.getChannelFeeStructures(),
       ]);
-
-      setSalesChannels(channels);
-      setChannelFeeStructures(structures);
-      setImportPhases(phases);
-      setImportFees(fees);
+      setChannels(channelsData);
+      setChannelFees(feesData);
     } catch (error) {
-      console.error('Failed to load fee management data:', error);
+      console.error('Error loading data:', error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleAddChannelFeeStructure = async (
-    feeStructureData: ChannelFeeFormData & { salesChannelId: string }
-  ) => {
-    try {
-      const newStructure = storageService.saveChannelFeeStructure({
-        salesChannelId: feeStructureData.salesChannelId,
-        percentageRate: parseFloat(feeStructureData.percentageRate),
-        fixedFee: parseFloat(feeStructureData.fixedFee.replace(/,/g, '')),
-        minimumFee: feeStructureData.minimumFee
-          ? parseFloat(feeStructureData.minimumFee.replace(/,/g, ''))
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const feeData: Omit<ChannelFeeStructure, 'id' | 'createdAt' | 'updatedAt'> =
+      {
+        salesChannelId: formData.salesChannelId,
+        percentageRate: parseFloat(formData.percentageRate),
+        fixedFee: parseFloat(formData.fixedFee),
+        minimumFee: formData.minimumFee
+          ? parseFloat(formData.minimumFee)
           : undefined,
-        maximumFee: feeStructureData.maximumFee
-          ? parseFloat(feeStructureData.maximumFee.replace(/,/g, ''))
+        maximumFee: formData.maximumFee
+          ? parseFloat(formData.maximumFee)
           : undefined,
         isActive: true,
-      });
+      };
 
-      setChannelFeeStructures((prev) => [...prev, newStructure]);
-    } catch (error) {
-      console.error('Failed to add channel fee structure:', error);
-      alert('Failed to add channel fee structure. Please try again.');
-    }
-  };
-
-  const handleUpdateChannelFeeStructure = async (
-    feeStructureId: string,
-    feeStructureData: ChannelFeeFormData
-  ) => {
     try {
-      const updatedStructure = storageService.updateChannelFeeStructure(
-        feeStructureId,
-        {
-          percentageRate: parseFloat(feeStructureData.percentageRate),
-          fixedFee: parseFloat(feeStructureData.fixedFee.replace(/,/g, '')),
-          minimumFee: feeStructureData.minimumFee
-            ? parseFloat(feeStructureData.minimumFee.replace(/,/g, ''))
-            : undefined,
-          maximumFee: feeStructureData.maximumFee
-            ? parseFloat(feeStructureData.maximumFee.replace(/,/g, ''))
-            : undefined,
-        }
-      );
+      if (editingFee) {
+        await storageService.updateChannelFeeStructure(editingFee.id, feeData);
+      } else {
+        await storageService.saveChannelFeeStructure(feeData);
+      }
 
-      setChannelFeeStructures((prev) =>
-        prev.map((structure) =>
-          structure.id === feeStructureId ? updatedStructure : structure
-        )
-      );
+      await loadData();
+      resetForm();
     } catch (error) {
-      console.error('Failed to update channel fee structure:', error);
-      alert('Failed to update channel fee structure. Please try again.');
+      console.error('Error saving fee structure:', error);
     }
   };
 
-  const handleDeleteChannelFeeStructure = async (feeStructureId: string) => {
-    try {
-      storageService.deleteChannelFeeStructure(feeStructureId);
-      setChannelFeeStructures((prev) =>
-        prev.filter((structure) => structure.id !== feeStructureId)
-      );
-    } catch (error) {
-      console.error('Failed to delete channel fee structure:', error);
-      alert('Failed to delete channel fee structure. Please try again.');
+  const handleEdit = (fee: ChannelFeeStructure) => {
+    setEditingFee(fee);
+    setFormData({
+      salesChannelId: fee.salesChannelId,
+      percentageRate: fee.percentageRate.toString(),
+      fixedFee: fee.fixedFee.toString(),
+      minimumFee: fee.minimumFee?.toString() || '',
+      maximumFee: fee.maximumFee?.toString() || '',
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Are you sure you want to delete this fee structure?')) {
+      try {
+        await storageService.deleteChannelFeeStructure(id);
+        await loadData();
+      } catch (error) {
+        console.error('Error deleting fee structure:', error);
+      }
     }
   };
 
-  // Calculate some demo metrics
-  const totalImportFees = importFees.reduce((sum, fee) => sum + fee.amount, 0);
-  const activeChannelFees = channelFeeStructures.filter(
-    (cfs) => cfs.isActive
-  ).length;
+  const resetForm = () => {
+    setFormData({
+      salesChannelId: '',
+      percentageRate: '',
+      fixedFee: '',
+      minimumFee: '',
+      maximumFee: '',
+    });
+    setEditingFee(null);
+    setShowForm(false);
+  };
 
-  // Demo calculations
-  const demoRevenueAmount = 500000; // 500,000 VND
-  const demoChannelFees = channelFeeStructures.map((structure) => {
-    const channel = salesChannels.find(
-      (c) => c.id === structure.salesChannelId
-    );
-    const calculatedFee = storageService.calculateChannelFee(
-      structure.salesChannelId,
-      demoRevenueAmount
-    );
-    return {
-      channelName: channel?.name || 'Unknown',
-      channelType: channel?.type || 'unknown',
-      fee: calculatedFee,
-      percentage: structure.percentageRate,
-      fixedFee: structure.fixedFee,
-    };
-  });
+  const getChannelName = (channelId: string) => {
+    const channel = channels.find((c) => c.id === channelId);
+    return channel ? channel.name : 'Unknown Channel';
+  };
 
-  if (loading) {
+  const calculateTotalRevenue = () => {
+    // Mock calculation for demonstration
+    return 1250000000; // 1.25 billion VND
+  };
+
+  const calculateTotalFees = () => {
+    // Mock calculation for demonstration
+    return 65000000; // 65 million VND
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+    }).format(amount);
+  };
+
+  if (isLoading) {
     return (
-      <div className="flex h-64 items-center justify-center">
+      <ResponsiveWrapper className="flex h-48 items-center justify-center">
         <div className="text-center">
-          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
-          <p className="text-muted-foreground">
-            Loading fee management data...
-          </p>
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-gray-900"></div>
+          <p className="mt-4 text-muted-foreground">Loading fee data...</p>
         </div>
-      </div>
+      </ResponsiveWrapper>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <ResponsiveWrapper className="space-y-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">
+        <h1
+          className={`font-bold tracking-tight ${isMobile ? 'text-2xl' : 'text-3xl'}`}
+        >
           Fee Management System
         </h1>
         <p className="text-muted-foreground">
@@ -182,52 +190,33 @@ export default function FeeManagementDemo() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+      <ResponsiveGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="md">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Import Fees
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatVND(totalImportFees)}
+              {formatCurrency(calculateTotalRevenue())}
             </div>
             <p className="text-xs text-muted-foreground">
-              {importFees.length} fee{importFees.length !== 1 ? 's' : ''} across{' '}
-              {importPhases.length} import{importPhases.length !== 1 ? 's' : ''}
+              +12.5% from last month
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Channel Fee Structures
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Total Fees</CardTitle>
             <Calculator className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{activeChannelFees}</div>
-            <p className="text-xs text-muted-foreground">
-              Active structures for {salesChannels.length} channel
-              {salesChannels.length !== 1 ? 's' : ''}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Demo Revenue</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
             <div className="text-2xl font-bold">
-              {formatVND(demoRevenueAmount)}
+              {formatCurrency(calculateTotalFees())}
             </div>
             <p className="text-xs text-muted-foreground">
-              Sample transaction amount
+              5.2% of total revenue
             </p>
           </CardContent>
         </Card>
@@ -235,229 +224,237 @@ export default function FeeManagementDemo() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Calculated Fees
+              Active Channels
             </CardTitle>
-            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+            <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {formatVND(demoChannelFees.reduce((sum, cf) => sum + cf.fee, 0))}
+            <div className="text-2xl font-bold">
+              {channels.filter((c) => c.isActive).length}
             </div>
             <p className="text-xs text-muted-foreground">
-              Total fees for demo amount
+              {channels.length} total channels
             </p>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Fee Management Tabs */}
-      <Tabs value="channel-fees" onValueChange={() => {}} className="space-y-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Fee Structures
+            </CardTitle>
+            <Plus className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{channelFees.length}</div>
+            <p className="text-xs text-muted-foreground">
+              Configured fee structures
+            </p>
+          </CardContent>
+        </Card>
+      </ResponsiveGrid>
+
+      {/* Main Content Tabs */}
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-4"
+      >
         <TabsList>
-          <TabsTrigger value="channel-fees">
-            Channel Fee Configuration (P2)
-          </TabsTrigger>
-          <TabsTrigger value="fee-calculations">Fee Calculations</TabsTrigger>
-          <TabsTrigger value="import-summary">
-            Import Fee Summary (P1)
-          </TabsTrigger>
+          <TabsTrigger value="channel-fees">Channel Fees</TabsTrigger>
+          <TabsTrigger value="fee-calculations">Fee Calculator</TabsTrigger>
+          <TabsTrigger value="import-summary">Import Summary</TabsTrigger>
         </TabsList>
 
         <TabsContent value="channel-fees" className="space-y-4">
-          <ChannelFeeManager
-            channelFeeStructures={channelFeeStructures}
-            salesChannels={salesChannels}
-            onAddFeeStructure={handleAddChannelFeeStructure}
-            onUpdateFeeStructure={handleUpdateChannelFeeStructure}
-            onDeleteFeeStructure={handleDeleteChannelFeeStructure}
-            loading={loading}
-          />
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Channel Fee Structures</h2>
+            <Button onClick={() => setShowForm(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Fee Structure
+            </Button>
+          </div>
+
+          {showForm && (
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  {editingFee ? 'Edit Fee Structure' : 'Add New Fee Structure'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="salesChannelId">Sales Channel</Label>
+                      <Select
+                        value={formData.salesChannelId}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, salesChannelId: value })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a channel" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {channels.map((channel) => (
+                            <SelectItem key={channel.id} value={channel.id}>
+                              {channel.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="percentageRate">Fee Percentage (%)</Label>
+                      <Input
+                        id="percentageRate"
+                        type="number"
+                        step="0.01"
+                        value={formData.percentageRate}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            percentageRate: e.target.value,
+                          })
+                        }
+                        placeholder="e.g., 2.5"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="fixedFee">Fixed Fee (VND)</Label>
+                      <Input
+                        id="fixedFee"
+                        type="number"
+                        value={formData.fixedFee}
+                        onChange={(e) =>
+                          setFormData({ ...formData, fixedFee: e.target.value })
+                        }
+                        placeholder="e.g., 50000"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="minimumFee">Minimum Fee (VND)</Label>
+                      <Input
+                        id="minimumFee"
+                        type="number"
+                        value={formData.minimumFee}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            minimumFee: e.target.value,
+                          })
+                        }
+                        placeholder="e.g., 10000"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="maximumFee">Maximum Fee (VND)</Label>
+                      <Input
+                        id="maximumFee"
+                        type="number"
+                        value={formData.maximumFee}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            maximumFee: e.target.value,
+                          })
+                        }
+                        placeholder="e.g., 500000"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button type="submit">
+                      {editingFee ? 'Update' : 'Create'} Fee Structure
+                    </Button>
+                    <Button type="button" variant="outline" onClick={resetForm}>
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="grid gap-4">
+            {channelFees.map((fee) => (
+              <Card key={fee.id}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">
+                          {getChannelName(fee.salesChannelId)}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">
+                          {fee.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                      <div className="text-sm">
+                        <span className="font-medium">
+                          {fee.percentageRate}%
+                        </span>
+                        {fee.fixedFee > 0 && (
+                          <>
+                            {' + '}
+                            <span className="font-medium">
+                              {formatCurrency(fee.fixedFee)}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(fee)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(fee.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+
+            {channelFees.length === 0 && (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center text-muted-foreground">
+                    No fee structures configured yet. Click &quot;Add Fee
+                    Structure&quot; to get started.
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="fee-calculations" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Fee Calculation Examples</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                How fees are calculated for a {formatVND(demoRevenueAmount)}{' '}
-                transaction across different channels
-              </p>
-            </CardHeader>
-            <CardContent>
-              {demoChannelFees.length === 0 ? (
-                <div className="py-8 text-center text-gray-500">
-                  <Calculator className="mx-auto mb-4 h-12 w-12 opacity-50" />
-                  <p className="text-lg font-medium">
-                    No fee structures configured
-                  </p>
-                  <p className="text-sm">
-                    Configure channel fee structures to see calculation examples
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {demoChannelFees.map((channelFee, index) => (
-                    <div key={index} className="rounded-lg border p-4">
-                      <div className="mb-3 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-medium">
-                            {channelFee.channelName}
-                          </h4>
-                          <Badge variant="outline" className="capitalize">
-                            {channelFee.channelType}
-                          </Badge>
-                        </div>
-                        <div className="text-lg font-bold text-red-600">
-                          {formatVND(channelFee.fee)}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-3">
-                        <div>
-                          <span className="text-gray-500">Base Amount:</span>
-                          <p className="font-medium">
-                            {formatVND(demoRevenueAmount)}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">
-                            Percentage ({channelFee.percentage}%):
-                          </span>
-                          <p className="font-medium">
-                            {formatVND(
-                              (demoRevenueAmount * channelFee.percentage) / 100
-                            )}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">Fixed Fee:</span>
-                          <p className="font-medium">
-                            {formatVND(channelFee.fixedFee)}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 rounded bg-gray-50 p-2 text-sm">
-                        <span className="text-gray-500">Net Revenue: </span>
-                        <span className="font-medium text-green-600">
-                          {formatVND(demoRevenueAmount - channelFee.fee)}
-                        </span>
-                        <span className="ml-2 text-gray-500">
-                          (
-                          {(
-                            ((demoRevenueAmount - channelFee.fee) /
-                              demoRevenueAmount) *
-                            100
-                          ).toFixed(1)}
-                          % of gross)
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <FeeCalculator
+            channelFeeStructures={channelFees}
+            salesChannels={channels}
+          />
         </TabsContent>
 
         <TabsContent value="import-summary" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Import Fee Summary (P1 Feature)</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Overview of import phases and their associated fees
-              </p>
-            </CardHeader>
-            <CardContent>
-              {importPhases.length === 0 ? (
-                <div className="py-8 text-center text-gray-500">
-                  <DollarSign className="mx-auto mb-4 h-12 w-12 opacity-50" />
-                  <p className="text-lg font-medium">No import phases found</p>
-                  <p className="text-sm">
-                    Create import phases to see fee summaries here
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {importPhases.slice(0, 5).map((phase) => {
-                    const phaseFees = importFees.filter(
-                      (fee) => fee.importPhaseId === phase.id
-                    );
-                    const totalFees = phaseFees.reduce(
-                      (sum, fee) => sum + fee.amount,
-                      0
-                    );
-
-                    return (
-                      <div key={phase.id} className="rounded-lg border p-4">
-                        <div className="mb-2 flex items-center justify-between">
-                          <div>
-                            <h4 className="font-medium">{phase.code}</h4>
-                            <p className="text-sm text-gray-500">
-                              {phase.date.toLocaleDateString('vi-VN')}
-                            </p>
-                          </div>
-                          <Badge
-                            variant={
-                              phase.status === 'completed'
-                                ? 'default'
-                                : 'secondary'
-                            }
-                          >
-                            {phase.status}
-                          </Badge>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-3">
-                          <div>
-                            <span className="text-gray-500">Base Cost:</span>
-                            <p className="font-medium">
-                              {formatVND(phase.totalCost)}
-                            </p>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Total Fees:</span>
-                            <p className="font-medium text-red-600">
-                              {formatVND(totalFees)}
-                            </p>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Final Cost:</span>
-                            <p className="font-medium text-blue-600">
-                              {formatVND(phase.finalCost)}
-                            </p>
-                          </div>
-                        </div>
-
-                        {phaseFees.length > 0 && (
-                          <div className="mt-3 text-sm">
-                            <span className="text-gray-500">
-                              Fee breakdown:{' '}
-                            </span>
-                            {phaseFees.map((fee, index) => (
-                              <span key={fee.id}>
-                                {fee.name} ({formatVND(fee.amount)})
-                                {index < phaseFees.length - 1 ? ', ' : ''}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-
-                  {importPhases.length > 5 && (
-                    <div className="py-4 text-center">
-                      <Button variant="outline" size="sm">
-                        View All Import Phases ({importPhases.length})
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <FeeSummaryDashboard showAllPhases={true} />
         </TabsContent>
       </Tabs>
-    </div>
+    </ResponsiveWrapper>
   );
 }

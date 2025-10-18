@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,9 @@ import type {
   RevenuePeriod,
 } from '@/features/revenue/types/revenue';
 import { ProfitabilityAnalysis } from './ProfitabilityAnalysis';
+import { ProfitSummaryCard } from './ProfitSummaryCard';
+import { storageService } from '@/lib/storage';
+import type { RevenueEntry } from '@/types';
 
 // Currency formatter using VND
 const formatCurrency = (amount: number): string => {
@@ -91,6 +95,22 @@ export function RevenueAnalytics({
   onPeriodChange?: (period: RevenuePeriod) => void;
   onRefresh?: () => void;
 }) {
+  // Fetch revenue entries for profit analysis
+  const [revenueEntries, setRevenueEntries] = useState<RevenueEntry[]>([]);
+
+  useEffect(() => {
+    try {
+      // Get all revenue entries for profit calculation
+      const entries = storageService.getRevenueEntries();
+      setRevenueEntries(entries);
+    } catch (error) {
+      console.error(
+        'Failed to fetch revenue entries for profit analysis:',
+        error
+      );
+      setRevenueEntries([]);
+    }
+  }, [data]); // Refresh when analytics data changes
   if (error) {
     return (
       <Card>
@@ -549,6 +569,15 @@ export function RevenueAnalytics({
           </CardContent>
         </Card>
       )}
+
+      {/* Import Phase Profit Summary */}
+      <ProfitSummaryCard
+        entries={revenueEntries}
+        title="Import Phase Profit Analysis"
+        period={period.charAt(0).toUpperCase() + period.slice(1)}
+        showTrends={true}
+        className="mb-6"
+      />
 
       {/* Enhanced Profitability Analysis - P2 Integration */}
       {data.channelPerformance.length > 0 && (

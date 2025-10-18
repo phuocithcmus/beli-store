@@ -16,6 +16,13 @@ import type { Product, ProductVariant } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
+  ResponsiveWrapper,
+  ResponsiveGrid,
+  ResponsiveStack,
+} from '@/components/layout/ResponsiveWrapper';
+import { useIsMobile } from '@/hooks/useResponsive';
+import { touchOptimized } from '@/lib/utils/responsive';
+import {
   Plus,
   Upload,
   Package,
@@ -29,6 +36,7 @@ import { formatVND } from '@/lib/currency';
 
 export default function ProductsPage() {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [products, setProducts] = useState<Product[]>([]);
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,43 +114,70 @@ export default function ProductsPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6 p-6">
+      <ResponsiveWrapper className="space-y-6">
         <div className="flex h-64 items-center justify-center">
           <div className="text-center">
             <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>
             <p className="mt-4 text-muted-foreground">Loading products...</p>
           </div>
         </div>
-      </div>
+      </ResponsiveWrapper>
     );
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <ResponsiveWrapper className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <ResponsiveStack spacing={isMobile ? 'sm' : 'md'}>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Products</h1>
+          <h1
+            className={`font-bold tracking-tight ${isMobile ? 'text-2xl' : 'text-3xl'}`}
+          >
+            Products
+          </h1>
           <p className="text-muted-foreground">
             Manage your product inventory with variant support for colors,
             sizes, and forms
           </p>
         </div>
-        <div className="flex gap-2">
-          <ExportButton variant="outline" />
-          <Button variant="outline">
-            <Upload className="mr-2 h-4 w-4" />
-            Import
-          </Button>
-          <Button onClick={() => setShowAddDialog(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Product
-          </Button>
-        </div>
-      </div>
+
+        {/* Mobile: Stack buttons vertically, Desktop: Horizontal */}
+        {isMobile ? (
+          <ResponsiveStack spacing="sm">
+            <Button
+              onClick={() => setShowAddDialog(true)}
+              className={touchOptimized('w-full', {
+                touchClasses: 'min-h-[48px]',
+              })}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Product
+            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <ExportButton variant="outline" className="w-full" />
+              <Button variant="outline" className="w-full">
+                <Upload className="mr-2 h-4 w-4" />
+                Import
+              </Button>
+            </div>
+          </ResponsiveStack>
+        ) : (
+          <div className="flex gap-2">
+            <ExportButton variant="outline" />
+            <Button variant="outline">
+              <Upload className="mr-2 h-4 w-4" />
+              Import
+            </Button>
+            <Button onClick={() => setShowAddDialog(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Product
+            </Button>
+          </div>
+        )}
+      </ResponsiveStack>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-6">
+      <ResponsiveGrid columns={{ xs: 1, sm: 2, md: 3, lg: 6 }} gap="md">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
@@ -236,7 +271,7 @@ export default function ProductsPage() {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </ResponsiveGrid>
 
       {/* Products List with built-in filtering */}
       <ProductList
@@ -260,6 +295,6 @@ export default function ProductsPage() {
         product={editingProduct || undefined}
         onSuccess={handleDialogSuccess}
       />
-    </div>
+    </ResponsiveWrapper>
   );
 }

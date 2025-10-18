@@ -93,6 +93,72 @@ class LocalStorageService {
       }));
     }
 
+    // Fix invalid UUIDs (migrate from custom ID formats)
+    if (data.revenueEntries && Array.isArray(data.revenueEntries)) {
+      data.revenueEntries = data.revenueEntries.map(
+        (entry: Partial<RevenueEntry>) => {
+          // Check if ID is not a valid UUID (starts with rev_)
+          if (
+            entry.id &&
+            typeof entry.id === 'string' &&
+            entry.id.startsWith('rev_')
+          ) {
+            return { ...entry, id: crypto.randomUUID() };
+          }
+          return entry;
+        }
+      );
+    }
+
+    // Fix invalid UUIDs in transactions
+    if (data.transactions && Array.isArray(data.transactions)) {
+      data.transactions = data.transactions.map(
+        (transaction: Partial<Transaction>) => {
+          // Check if ID is not a valid UUID
+          if (
+            transaction.id &&
+            typeof transaction.id === 'string' &&
+            !this.isValidUUID(transaction.id)
+          ) {
+            return { ...transaction, id: crypto.randomUUID() };
+          }
+          return transaction;
+        }
+      );
+    }
+
+    // Fix invalid UUIDs in channel fee structures
+    if (data.channelFeeStructures && Array.isArray(data.channelFeeStructures)) {
+      data.channelFeeStructures = data.channelFeeStructures.map(
+        (structure: Partial<ChannelFeeStructure>) => {
+          const newStructure = { ...structure };
+          // Fix structure ID
+          if (
+            newStructure.id &&
+            typeof newStructure.id === 'string' &&
+            !this.isValidUUID(newStructure.id)
+          ) {
+            newStructure.id = crypto.randomUUID();
+          }
+          // Fix sales channel ID
+          if (
+            newStructure.salesChannelId &&
+            typeof newStructure.salesChannelId === 'string' &&
+            !this.isValidUUID(newStructure.salesChannelId)
+          ) {
+            // Attempt to find a matching channel by name or default to a placeholder
+            const channel = data.salesChannels.find(
+              (c: SalesChannel) => c.name === newStructure.salesChannelId
+            );
+            newStructure.salesChannelId = channel
+              ? channel.id
+              : DEFAULT_SALES_CHANNELS[0].id; // Fallback to a default
+          }
+          return newStructure;
+        }
+      );
+    }
+
     // Update record counts
     if (!data.metadata.recordCounts.productVariants) {
       data.metadata.recordCounts.productVariants = data.productVariants.length;
@@ -135,7 +201,12 @@ class LocalStorageService {
 
       const parsed = JSON.parse(data, (key, value) => {
         // Convert date strings back to Date objects
-        if (key.endsWith('At') || key === 'date' || key === 'lastBackup') {
+        if (
+          key.endsWith('At') ||
+          key === 'date' ||
+          key === 'lastBackup' ||
+          key === 'saleDate'
+        ) {
           return new Date(value);
         }
         return value;
@@ -267,6 +338,15 @@ class LocalStorageService {
   }
 
   /**
+   * Check if a string is a valid UUID
+   */
+  private isValidUUID(str: string): boolean {
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
+  }
+
+  /**
    * Force data migration - useful for ensuring existing data has latest schema
    */
   forceMigration(): void {
@@ -286,6 +366,7 @@ class LocalStorageService {
    */
   getProductsWithVariants(): (Product & { variants?: ProductVariant[] })[] {
     const data = this.getData();
+
     return data.products.map((product) => {
       const variants = data.productVariants.filter(
         (v) => v.productId === product.id
@@ -443,6 +524,58 @@ class LocalStorageService {
 
   getImportPhaseByCode(code: string): ImportPhase | undefined {
     return this.getData().importPhases.find((ip) => ip.code === code);
+  }
+
+  /**
+   * Get import phases that have available products for a specific product
+   * Only returns phases where the product has remaining quantity > 0
+   */
+  getAvailableImportPhases(productId: string): ImportPhase[] {
+    const data = this.getData();
+
+    // First check if the product itself has remaining quantity
+    const product = data.products.find((p) => p.id === productId);
+    if (!product || product.remainingQuantity <= 0) {
+      return [];
+    }
+
+    // Get all import phase products for the specified product
+    const productImportPhases = data.importPhaseProducts.filter(
+      (ipp) => ipp.productId === productId
+    );
+
+    // Get the corresponding import phases
+    const availablePhaseIds = new Set(
+      productImportPhases.map((ipp) => ipp.importPhaseId)
+    );
+
+    return data.importPhases
+      .filter((phase) => availablePhaseIds.has(phase.id))
+      .sort((a, b) => b.date.getTime() - a.date.getTime()); // Sort by date, newest first
+  }
+
+  /**
+   * Get import phases with available products for any product
+   * Returns phases that have at least one product with remaining quantity > 0
+   */
+  getAllAvailableImportPhases(): ImportPhase[] {
+    const data = this.getData();
+
+    // Get products that have remaining quantity
+    const availableProductIds = new Set(
+      data.products.filter((p) => p.remainingQuantity > 0).map((p) => p.id)
+    );
+
+    // Get import phases that have products with remaining quantity
+    const phasesWithStock = new Set(
+      data.importPhaseProducts
+        .filter((ipp) => availableProductIds.has(ipp.productId))
+        .map((ipp) => ipp.importPhaseId)
+    );
+
+    return data.importPhases
+      .filter((phase) => phasesWithStock.has(phase.id))
+      .sort((a, b) => b.date.getTime() - a.date.getTime());
   }
 
   saveImportPhase(
@@ -901,6 +1034,20 @@ class LocalStorageService {
     >
   ): ChannelFeeStructure {
     const data = this.getData();
+
+    // If salesChannelId is not a UUID, assume it's a name and find the ID
+    if (!this.isValidUUID(feeStructureData.salesChannelId)) {
+      const channel = data.salesChannels.find(
+        (c) => c.id === feeStructureData.salesChannelId
+      );
+      if (channel) {
+        feeStructureData.salesChannelId = channel.id;
+      } else {
+        throw new Error(
+          `Sales channel with name "${feeStructureData.salesChannelId}" not found.`
+        );
+      }
+    }
 
     // Validate sales channel exists
     const channel = data.salesChannels.find(
@@ -1706,6 +1853,476 @@ class LocalStorageService {
     return true;
   }
 
+  /**
+   * Get import phase cost for a product
+   * Returns the unit cost from the import phase product
+   */
+  getImportPhaseProductCost(
+    importPhaseId: string,
+    productId: string
+  ): number | null {
+    const data = this.getData();
+
+    const importPhaseProduct = data.importPhaseProducts.find(
+      (ipp) =>
+        ipp.importPhaseId === importPhaseId && ipp.productId === productId
+    );
+
+    return importPhaseProduct ? importPhaseProduct.unitCost : null;
+  }
+
+  /**
+   * Get full import phase cost for a product including proportional fees
+   * Returns the unit cost plus allocated fees (shipping, customs, etc.)
+   */
+  getImportPhaseProductFullCost(
+    importPhaseId: string,
+    productId: string
+  ): number | null {
+    const data = this.getData();
+
+    const importPhaseProduct = data.importPhaseProducts.find(
+      (ipp) =>
+        ipp.importPhaseId === importPhaseId && ipp.productId === productId
+    );
+
+    if (!importPhaseProduct) {
+      return null;
+    }
+
+    const baseCost = importPhaseProduct.unitCost;
+
+    // Get all fees for this import phase
+    const phaseFees = this.getImportFees(importPhaseId);
+    const totalFees = phaseFees.reduce((sum, fee) => sum + fee.amount, 0);
+
+    if (totalFees === 0) {
+      return baseCost; // No fees to allocate
+    }
+
+    // Get all products in this import phase to calculate proportional allocation
+    const allPhaseProducts = data.importPhaseProducts.filter(
+      (ipp) => ipp.importPhaseId === importPhaseId
+    );
+
+    // Calculate total value of all products in the phase (quantity * unitCost)
+    const totalPhaseValue = allPhaseProducts.reduce(
+      (sum, ipp) => sum + ipp.quantity * ipp.unitCost,
+      0
+    );
+
+    if (totalPhaseValue === 0) {
+      return baseCost; // Avoid division by zero
+    }
+
+    // Calculate this product's value in the phase
+    const productValue =
+      importPhaseProduct.quantity * importPhaseProduct.unitCost;
+
+    // Allocate fees proportionally based on product value
+    const feeAllocationRatio = productValue / totalPhaseValue;
+    const allocatedFees = totalFees * feeAllocationRatio;
+
+    // Calculate per-unit allocated fee
+    const feePerUnit = allocatedFees / importPhaseProduct.quantity;
+
+    return baseCost + feePerUnit;
+  }
+
+  /**
+   * Get detailed cost breakdown for a product in an import phase
+   * Returns base cost, allocated fees, and total cost per unit
+   */
+  getImportPhaseProductCostBreakdown(
+    importPhaseId: string,
+    productId: string
+  ): {
+    baseCost: number;
+    allocatedFees: number;
+    totalCost: number;
+    feeBreakdown: {
+      type: string;
+      name: string;
+      amount: number;
+      allocatedAmount: number;
+    }[];
+  } | null {
+    const data = this.getData();
+
+    const importPhaseProduct = data.importPhaseProducts.find(
+      (ipp) =>
+        ipp.importPhaseId === importPhaseId && ipp.productId === productId
+    );
+
+    if (!importPhaseProduct) {
+      return null;
+    }
+
+    const baseCost = importPhaseProduct.unitCost;
+
+    // Get all fees for this import phase
+    const phaseFees = this.getImportFees(importPhaseId);
+
+    if (phaseFees.length === 0) {
+      return {
+        baseCost,
+        allocatedFees: 0,
+        totalCost: baseCost,
+        feeBreakdown: [],
+      };
+    }
+
+    // Get all products in this import phase to calculate proportional allocation
+    const allPhaseProducts = data.importPhaseProducts.filter(
+      (ipp) => ipp.importPhaseId === importPhaseId
+    );
+
+    // Calculate total value of all products in the phase (quantity * unitCost)
+    const totalPhaseValue = allPhaseProducts.reduce(
+      (sum, ipp) => sum + ipp.quantity * ipp.unitCost,
+      0
+    );
+
+    if (totalPhaseValue === 0) {
+      return {
+        baseCost,
+        allocatedFees: 0,
+        totalCost: baseCost,
+        feeBreakdown: [],
+      };
+    }
+
+    // Calculate this product's value in the phase
+    const productValue =
+      importPhaseProduct.quantity * importPhaseProduct.unitCost;
+    const feeAllocationRatio = productValue / totalPhaseValue;
+
+    // Create detailed fee breakdown
+    const feeBreakdown = phaseFees.map((fee) => {
+      const allocatedAmount =
+        (fee.amount * feeAllocationRatio) / importPhaseProduct.quantity;
+      return {
+        type: fee.type,
+        name: fee.name,
+        amount: fee.amount,
+        allocatedAmount,
+      };
+    });
+
+    const totalAllocatedFees = feeBreakdown.reduce(
+      (sum, fee) => sum + fee.allocatedAmount,
+      0
+    );
+
+    return {
+      baseCost,
+      allocatedFees: totalAllocatedFees,
+      totalCost: baseCost + totalAllocatedFees,
+      feeBreakdown,
+    };
+  }
+
+  /**
+   * Calculate profit for a revenue entry based on import phase
+   */
+  calculateRevenueEntryProfit(revenueEntry: RevenueEntry): {
+    profit: number;
+    profitMargin: number;
+    costPrice: number | null;
+    hasImportPhaseData: boolean;
+  } {
+    if (!revenueEntry.importPhaseId) {
+      return {
+        profit: 0,
+        profitMargin: 0,
+        costPrice: null,
+        hasImportPhaseData: false,
+      };
+    }
+
+    // Use full cost calculation including fees instead of base cost only
+    const costPrice = this.getImportPhaseProductFullCost(
+      revenueEntry.importPhaseId,
+      revenueEntry.productId
+    );
+
+    if (costPrice === null) {
+      return {
+        profit: 0,
+        profitMargin: 0,
+        costPrice: null,
+        hasImportPhaseData: false,
+      };
+    }
+
+    const totalCost = costPrice * revenueEntry.quantity;
+    const totalRevenue = revenueEntry.amount;
+    const profit = totalRevenue - totalCost;
+    const profitMargin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
+
+    return {
+      profit,
+      profitMargin,
+      costPrice,
+      hasImportPhaseData: true,
+    };
+  }
+
+  /**
+   * Get profit data for multiple revenue entries
+   */
+  calculateMultipleRevenueEntriesProfit(revenueEntries: RevenueEntry[]): {
+    revenueEntryId: string;
+    profit: number;
+    profitMargin: number;
+    costPrice: number | null;
+    hasImportPhaseData: boolean;
+  }[] {
+    return revenueEntries.map((entry) => ({
+      revenueEntryId: entry.id,
+      ...this.calculateRevenueEntryProfit(entry),
+    }));
+  }
+
+  // ============================================================================
+  // ENHANCED FEE CALCULATION METHODS
+  // ============================================================================
+
+  /**
+   * Get comprehensive import fee summary for an import phase
+   * Returns detailed breakdown of all fees and their allocation
+   */
+  getImportPhaseFeesSummary(importPhaseId: string): {
+    totalFees: number;
+    feesByType: Record<string, number>;
+    averageFeePercentage: number;
+    phaseTotalCost: number;
+    finalCost: number;
+    fees: ImportFee[];
+  } {
+    const data = this.getData();
+
+    const phase = data.importPhases.find((p) => p.id === importPhaseId);
+    if (!phase) {
+      throw new Error('Import phase not found');
+    }
+
+    const fees = this.getImportFees(importPhaseId);
+    const totalFees = fees.reduce((sum, fee) => sum + fee.amount, 0);
+
+    // Group fees by type
+    const feesByType: Record<string, number> = {};
+    fees.forEach((fee) => {
+      const type = fee.type || 'other';
+      feesByType[type] = (feesByType[type] || 0) + fee.amount;
+    });
+
+    // Calculate average fee percentage relative to phase cost
+    const averageFeePercentage =
+      phase.totalCost > 0 ? (totalFees / phase.totalCost) * 100 : 0;
+
+    return {
+      totalFees: Math.round(totalFees),
+      feesByType,
+      averageFeePercentage: Math.round(averageFeePercentage * 100) / 100,
+      phaseTotalCost: phase.totalCost,
+      finalCost: phase.finalCost || phase.totalCost + totalFees,
+      fees,
+    };
+  }
+
+  /**
+   * Get aggregated fee statistics across all import phases
+   */
+  getAllImportFeesStatistics(): {
+    totalImportFees: number;
+    feesByType: Record<string, number>;
+    averageFeePerPhase: number;
+    totalPhases: number;
+  } {
+    const data = this.getData();
+    const allFees = data.importFees;
+    const totalFees = allFees.reduce((sum, fee) => sum + fee.amount, 0);
+
+    // Group by type
+    const feesByType: Record<string, number> = {};
+    allFees.forEach((fee) => {
+      const type = fee.type || 'other';
+      feesByType[type] = (feesByType[type] || 0) + fee.amount;
+    });
+
+    // Calculate average fees per phase
+    const phasesWithFees = new Set(allFees.map((fee) => fee.importPhaseId));
+    const averageFeePerPhase =
+      phasesWithFees.size > 0 ? totalFees / phasesWithFees.size : 0;
+
+    return {
+      totalImportFees: Math.round(totalFees),
+      feesByType,
+      averageFeePerPhase: Math.round(averageFeePerPhase),
+      totalPhases: phasesWithFees.size,
+    };
+  }
+
+  /**
+   * Calculate the impact of fees on product cost for a specific product
+   */
+  calculateFeeImpactOnProduct(productId: string): {
+    productCode: string;
+    productName: string;
+    totalImportFees: number;
+    averageFeePerUnit: number;
+    feePercentageOfCost: number;
+    importPhases: {
+      phaseId: string;
+      phaseCode: string;
+      baseCost: number;
+      allocatedFees: number;
+      totalCost: number;
+      quantity: number;
+    }[];
+  } | null {
+    const data = this.getData();
+
+    const product = data.products.find((p) => p.id === productId);
+    if (!product) {
+      return null;
+    }
+
+    // Find all import phases for this product
+    const productImportPhases = data.importPhaseProducts.filter(
+      (ipp) => ipp.productId === productId
+    );
+
+    if (productImportPhases.length === 0) {
+      return {
+        productCode: product.code,
+        productName: product.name,
+        totalImportFees: 0,
+        averageFeePerUnit: 0,
+        feePercentageOfCost: 0,
+        importPhases: [],
+      };
+    }
+
+    let totalImportFees = 0;
+    let totalBaseCost = 0;
+    let totalQuantity = 0;
+
+    const importPhases = productImportPhases.map((ipp) => {
+      const phase = data.importPhases.find((p) => p.id === ipp.importPhaseId);
+      const costBreakdown = this.getImportPhaseProductCostBreakdown(
+        ipp.importPhaseId,
+        productId
+      );
+
+      const baseCost = ipp.unitCost * ipp.quantity;
+      const allocatedFees = costBreakdown?.allocatedFees
+        ? costBreakdown.allocatedFees * ipp.quantity
+        : 0;
+      const totalCost = baseCost + allocatedFees;
+
+      totalImportFees += allocatedFees;
+      totalBaseCost += baseCost;
+      totalQuantity += ipp.quantity;
+
+      return {
+        phaseId: ipp.importPhaseId,
+        phaseCode: phase?.code || 'Unknown',
+        baseCost: Math.round(baseCost),
+        allocatedFees: Math.round(allocatedFees),
+        totalCost: Math.round(totalCost),
+        quantity: ipp.quantity,
+      };
+    });
+
+    const averageFeePerUnit =
+      totalQuantity > 0 ? totalImportFees / totalQuantity : 0;
+    const feePercentageOfCost =
+      totalBaseCost > 0 ? (totalImportFees / totalBaseCost) * 100 : 0;
+
+    return {
+      productCode: product.code,
+      productName: product.name,
+      totalImportFees: Math.round(totalImportFees),
+      averageFeePerUnit: Math.round(averageFeePerUnit),
+      feePercentageOfCost: Math.round(feePercentageOfCost * 100) / 100,
+      importPhases,
+    };
+  }
+
+  /**
+   * Get fee optimization suggestions for import phases
+   */
+  getFeeOptimizationSuggestions(): {
+    type: 'high_fee_percentage' | 'duplicate_supplier' | 'missing_category';
+    message: string;
+    importPhaseId?: string;
+    suggestion: string;
+    priority: 'high' | 'medium' | 'low';
+  }[] {
+    const data = this.getData();
+    const suggestions = [];
+
+    // Check for import phases with high fee percentages
+    for (const phase of data.importPhases) {
+      if (phase.totalCost > 0 && phase.totalFees > 0) {
+        const feePercentage = (phase.totalFees / phase.totalCost) * 100;
+        if (feePercentage > 30) {
+          suggestions.push({
+            type: 'high_fee_percentage' as const,
+            message: `Import phase ${phase.code} has high fees (${Math.round(feePercentage)}% of cost)`,
+            importPhaseId: phase.id,
+            suggestion:
+              'Review fee structure and negotiate better rates with suppliers',
+            priority: 'high' as const,
+          });
+        }
+      }
+    }
+
+    // Check for fees without proper categorization
+    const feesWithoutCategory = data.importFees.filter(
+      (fee) => !fee.type || fee.type === 'other'
+    );
+    if (feesWithoutCategory.length > 0) {
+      suggestions.push({
+        type: 'missing_category' as const,
+        message: `${feesWithoutCategory.length} fees are not properly categorized`,
+        suggestion: 'Categorize fees for better tracking and analysis',
+        priority: 'medium' as const,
+      });
+    }
+
+    // Group fees by type to identify optimization opportunities
+    const typeFees: Record<string, ImportFee[]> = {};
+    data.importFees.forEach((fee) => {
+      const type = fee.type || 'other';
+      if (!typeFees[type]) {
+        typeFees[type] = [];
+      }
+      typeFees[type].push(fee);
+    });
+
+    // Check for types with many fees (potential for consolidation)
+    Object.entries(typeFees).forEach(([type, fees]) => {
+      if (fees.length > 5) {
+        const totalAmount = fees.reduce((sum, fee) => sum + fee.amount, 0);
+        suggestions.push({
+          type: 'missing_category' as const,
+          message: `${type} fees appear ${fees.length} times totaling ${Math.round(totalAmount)} VND`,
+          suggestion: `Consider consolidating ${type} fees or negotiating bulk rates`,
+          priority: 'medium' as const,
+        });
+      }
+    });
+
+    return suggestions.sort((a, b) => {
+      const priorityOrder = { high: 3, medium: 2, low: 1 };
+      return priorityOrder[b.priority] - priorityOrder[a.priority];
+    });
+  }
+
   // ============================================================================
   // SALES CHANNEL METHODS
   // ============================================================================
@@ -2025,10 +2642,176 @@ class LocalStorageService {
 
     // Combine headers and rows
     const csvContent = [headers, ...rows]
-      .map((row) => row.map((field) => `"${field}"`).join(','))
+      .map((row) => row.join(','))
       .join('\n');
 
     return csvContent;
+  }
+
+  /**
+   * Export revenue entries with import phase and profit data to CSV format
+   */
+  async exportRevenueEntriesWithProfitToCSV(): Promise<string> {
+    const data = this.getData();
+    const revenueEntries = data.revenueEntries;
+
+    // Enhanced CSV headers including import phase and profit data
+    const headers = [
+      'Date',
+      'Product Name',
+      'Variant Details',
+      'Quantity',
+      'Unit Price',
+      'Total Amount',
+      'Sales Channel',
+      'Channel Fee',
+      'Net Amount',
+      'Import Phase Code',
+      'Import Date',
+      'Import Cost Per Unit',
+      'Total Import Cost',
+      'Gross Profit',
+      'Profit Margin (%)',
+      'Notes',
+    ];
+
+    // Convert revenue entries to CSV rows with profit calculations
+    const rows = revenueEntries.map((entry) => {
+      let importPhaseCode = '';
+      let importDate = '';
+      let importCostPerUnit = '';
+      let totalImportCost = '';
+      let grossProfit = '';
+      let profitMargin = '';
+
+      // Get import phase and profit data if available
+      if (entry.importPhaseId) {
+        const importPhase = data.importPhases.find(
+          (ip) => ip.id === entry.importPhaseId
+        );
+        if (importPhase) {
+          importPhaseCode = importPhase.code;
+          importDate = importPhase.date.toISOString().split('T')[0];
+
+          try {
+            const profitData = this.calculateRevenueEntryProfit(entry);
+            if (profitData && profitData.costPrice !== null) {
+              importCostPerUnit = profitData.costPrice.toFixed(2);
+              totalImportCost = (profitData.costPrice * entry.quantity).toFixed(
+                2
+              );
+              grossProfit = profitData.profit.toFixed(2);
+              profitMargin = profitData.profitMargin.toFixed(2);
+            }
+          } catch (error) {
+            // Silent error handling - skip profit calculation for this entry
+          }
+        }
+      }
+
+      return [
+        entry.saleDate.toISOString().split('T')[0],
+        entry.productName,
+        entry.variantDetails || '',
+        entry.quantity.toString(),
+        entry.unitPrice.toFixed(2),
+        entry.amount.toFixed(2),
+        entry.salesChannelName,
+        (entry.channelFee || 0).toFixed(2),
+        (entry.netAmount || entry.amount).toFixed(2),
+        importPhaseCode,
+        importDate,
+        importCostPerUnit,
+        totalImportCost,
+        grossProfit,
+        profitMargin,
+        entry.notes || '',
+      ];
+    });
+
+    // Combine headers and rows
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${cell}"`).join(','))
+      .join('\n');
+
+    return csvContent;
+  }
+
+  /**
+   * Export revenue entries with import phase and profit data to JSON format
+   */
+  async exportRevenueEntriesWithProfitToJSON(): Promise<string> {
+    const data = this.getData();
+    const revenueEntries = data.revenueEntries;
+
+    // Transform revenue entries with enhanced profit data
+    const enrichedEntries = revenueEntries.map((entry) => {
+      const baseEntry = {
+        id: entry.id,
+        date: entry.saleDate.toISOString().split('T')[0],
+        productName: entry.productName,
+        variantDetails: entry.variantDetails || null,
+        quantity: entry.quantity,
+        unitPrice: entry.unitPrice,
+        totalAmount: entry.amount,
+        salesChannel: entry.salesChannelName,
+        channelFee: entry.channelFee || 0,
+        netAmount: entry.netAmount || entry.amount,
+        notes: entry.notes || null,
+      };
+
+      // Add import phase and profit data if available
+      if (entry.importPhaseId) {
+        const importPhase = data.importPhases.find(
+          (ip) => ip.id === entry.importPhaseId
+        );
+        if (importPhase) {
+          try {
+            const profitData = this.calculateRevenueEntryProfit(entry);
+            return {
+              ...baseEntry,
+              importPhase: {
+                id: importPhase.id,
+                code: importPhase.code,
+                date: importPhase.date.toISOString().split('T')[0],
+                description: importPhase.description || null,
+              },
+              profitAnalysis:
+                profitData && profitData.costPrice !== null
+                  ? {
+                      importCostPerUnit: profitData.costPrice,
+                      totalImportCost: profitData.costPrice * entry.quantity,
+                      grossProfit: profitData.profit,
+                      profitMargin: profitData.profitMargin,
+                      hasImportPhaseData: profitData.hasImportPhaseData,
+                    }
+                  : null,
+            };
+          } catch (error) {
+            // Silent error handling for export
+          }
+        }
+      }
+
+      return {
+        ...baseEntry,
+        importPhase: null,
+        profitAnalysis: null,
+      };
+    });
+
+    return JSON.stringify(
+      {
+        exportDate: new Date().toISOString(),
+        totalEntries: enrichedEntries.length,
+        entriesWithProfitData: enrichedEntries.filter(
+          (e) => e.profitAnalysis !== null
+        ).length,
+        data: enrichedEntries,
+      },
+      null,
+      2
+    );
   }
 
   /**

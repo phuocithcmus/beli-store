@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Edit2, Trash2, Eye, Search, Filter } from 'lucide-react';
 import type { RevenueListProps } from '@/features/revenue/types/revenue';
 import { formatVND } from '@/lib/currency';
+import { ProfitDisplay } from './ProfitDisplay';
 
 // Simple date formatter
 const formatDate = (date: Date): string => {
@@ -31,14 +32,6 @@ const formatDate = (date: Date): string => {
     month: 'short',
     day: 'numeric',
   });
-};
-
-// Currency formatter
-const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount);
 };
 
 /**
@@ -300,6 +293,7 @@ export function RevenueList({
                       {sortBy === 'amount' &&
                         (sortDirection === 'asc' ? '↑' : '↓')}
                     </TableHead>
+                    <TableHead className="text-right">Profit</TableHead>
                     <TableHead className="text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -326,7 +320,16 @@ export function RevenueList({
                         {entry.quantity}
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        {formatCurrency(entry.amount)}
+                        {formatVND(entry.amount)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {entry.importPhaseId ? (
+                          <ProfitDisplay entry={entry} variant="compact" />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            No phase linked
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-center gap-1">

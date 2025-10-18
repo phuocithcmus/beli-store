@@ -10,6 +10,13 @@ import { useRouter } from 'next/navigation';
 import { Plus, Package, TrendingUp, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
+  ResponsiveWrapper,
+  ResponsiveGrid,
+  ResponsiveStack,
+} from '@/components/layout/ResponsiveWrapper';
+import { useIsMobile } from '@/hooks/useResponsive';
+import { touchOptimized } from '@/lib/utils/responsive';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -24,6 +31,7 @@ import { formatVND } from '@/lib/currency';
 
 export default function ImportsPage() {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [importPhases, setImportPhases] = useState<ImportPhase[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [showNewPhaseForm, setShowNewPhaseForm] = useState(false);
@@ -153,21 +161,23 @@ export default function ImportsPage() {
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
+      <ResponsiveWrapper className="flex h-64 items-center justify-center">
         <div className="text-center">
           <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
           <p className="text-muted-foreground">Loading import phases...</p>
         </div>
-      </div>
+      </ResponsiveWrapper>
     );
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <ResponsiveWrapper className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <ResponsiveStack spacing={isMobile ? 'sm' : 'md'}>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1
+            className={`font-bold tracking-tight ${isMobile ? 'text-2xl' : 'text-3xl'}`}
+          >
             Import Management
           </h1>
           <p className="text-muted-foreground">
@@ -178,15 +188,15 @@ export default function ImportsPage() {
 
         <Button
           onClick={() => setShowNewPhaseForm(true)}
-          className="bg-blue-600 hover:bg-blue-700"
+          className={`bg-blue-600 hover:bg-blue-700 ${isMobile ? 'w-full' : 'max-w-content'} ${touchOptimized('', { touchClasses: 'min-h-[48px]' })}`}
         >
           <Plus className="mr-2 h-4 w-4" />
           New Import Phase
         </Button>
-      </div>
+      </ResponsiveStack>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+      <ResponsiveGrid columns={{ xs: 1, md: 3 }} gap="lg">
         <div className="rounded-xl border bg-gradient-to-r from-blue-50 to-indigo-50 p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
@@ -236,7 +246,7 @@ export default function ImportsPage() {
             </div>
           </div>
         </div>
-      </div>
+      </ResponsiveGrid>
 
       {/* Import Phases List */}
       <ImportPhaseList
@@ -304,6 +314,6 @@ export default function ImportsPage() {
           onAddProducts={handleAddProductsToPhase}
         />
       )}
-    </div>
+    </ResponsiveWrapper>
   );
 }

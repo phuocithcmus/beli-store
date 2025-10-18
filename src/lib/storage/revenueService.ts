@@ -1,6 +1,26 @@
 /**
  * Revenue Entry Storage Service
  * Handles storage operations for revenue entries across sales channels
+ *
+ * IMPORTANT: Revenue vs Inventory Separation
+ * ==========================================
+ * This service manages revenue tracking independently from inventory management.
+ * Key principles:
+ *
+ * 1. REVENUE ENTRIES DO NOT AFFECT INVENTORY LEVELS
+ *    - Creating revenue entries does not decrease product inventory
+ *    - Revenue tracking is for financial analysis only
+ *    - Inventory changes should only happen through import/purchase operations
+ *
+ * 2. IMPORT PHASE LINKING FOR PROFIT CALCULATION
+ *    - Revenue entries can optionally link to import phases for cost tracking
+ *    - This enables profit calculation but does not affect inventory quantities
+ *    - Import phases track cost basis, not quantity allocation
+ *
+ * 3. SEPARATION OF CONCERNS
+ *    - Revenue service: Financial tracking, sales analysis, profit calculation
+ *    - Inventory service: Stock levels, import management, quantity tracking
+ *    - These systems are designed to work independently for data integrity
  */
 
 import type {
@@ -127,7 +147,7 @@ export class RevenueService {
   }
 
   private generateId(): string {
-    return `rev_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return crypto.randomUUID();
   }
 
   // Create revenue entry
@@ -163,6 +183,54 @@ export class RevenueService {
         }
       }
 
+      // Validate import phase if specified
+      if (entryData.importPhaseId) {
+        // Check if import phase is available for this product
+        const availablePhases = storageService.getAvailableImportPhases(
+          entryData.productId
+        );
+        const selectedPhase = availablePhases.find(
+          (phase) => phase.id === entryData.importPhaseId
+        );
+
+        if (!selectedPhase) {
+          throw new Error('Import phase not available for this product');
+        }
+
+        // Revenue entries can reference both active and completed import phases
+        // since they don't modify the import phase data, only use it for cost calculation
+        if (
+          selectedPhase.status !== 'active' &&
+          selectedPhase.status !== 'completed'
+        ) {
+          throw new Error(
+            'Cannot create revenue entry for import phase with invalid status'
+          );
+        }
+
+        // IMPORTANT: This validation ensures import phase data integrity
+        // Revenue entries should not modify import phase quantities
+        // We validate availability but do not reserve or decrease quantities
+        const requestedQuantity = parseInt(entryData.quantity);
+
+        // Basic validation: check if the product has any remaining quantity
+        const product = data.products.find((p) => p.id === entryData.productId);
+        if (!product || product.remainingQuantity < requestedQuantity) {
+          throw new Error(
+            `Insufficient product quantity. Available: ${product?.remainingQuantity || 0}, Requested: ${requestedQuantity}`
+          );
+        }
+
+        // Additional safeguard: Ensure import phase will not be modified
+        // This prevents accidental quantity decreases during revenue entry creation
+        const originalImportPhase = data.importPhases.find(
+          (ip) => ip.id === entryData.importPhaseId
+        );
+        if (!originalImportPhase) {
+          throw new Error('Import phase data integrity error');
+        }
+      }
+
       const now = new Date();
       const grossAmount = parseFloat(entryData.amount);
 
@@ -177,6 +245,7 @@ export class RevenueService {
         id: this.generateId(),
         productId: entryData.productId,
         productVariantId: entryData.productVariantId,
+        importPhaseId: entryData.importPhaseId, // Add import phase association
         productName: product.name,
         variantDetails: entryData.productVariantId
           ? this.getVariantDisplayName(data, entryData.productVariantId)
@@ -199,8 +268,8 @@ export class RevenueService {
       data.metadata.recordCounts.revenueEntries = data.revenueEntries.length;
       data.metadata.lastBackup = now;
 
-      // Update inventory - decrease stock for sold items
-      this.updateInventoryForSale(data, newEntry);
+      // Note: Inventory is NOT updated when creating revenue entries
+      // Revenue tracking is separate from inventory management to avoid double-counting
 
       this.saveData(data);
 

@@ -6,6 +6,11 @@
 'use client';
 
 import React, { useState } from 'react';
+import {
+  ResponsiveWrapper,
+  ResponsiveGrid,
+} from '@/components/layout/ResponsiveWrapper';
+import { useIsMobile } from '@/hooks/useResponsive';
 import { VariantAnalytics } from '@/features/products/components/VariantAnalytics';
 import { SalesPerformanceReporting } from '@/lib/integration/salesPerformanceIntegration';
 import { useAllVariantSales } from '@/features/products/hooks/useVariantSales';
@@ -31,6 +36,7 @@ import {
 export default function SalesAnalyticsPage() {
   const { isLoading } = useAllVariantSales();
   const [activeTab, setActiveTab] = useState('overview');
+  const isMobile = useIsMobile();
 
   // Generate comprehensive performance report
   const performanceReport =
@@ -52,10 +58,14 @@ export default function SalesAnalyticsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <ResponsiveWrapper>
       {/* Header */}
       <div className="space-y-4">
-        <h1 className="text-3xl font-bold tracking-tight">Sales Analytics</h1>
+        <h1
+          className={`font-bold tracking-tight ${isMobile ? 'text-2xl' : 'text-3xl'}`}
+        >
+          Sales Analytics
+        </h1>
         <p className="text-muted-foreground">
           Comprehensive sales performance analytics and insights for product
           variants
@@ -63,7 +73,7 @@ export default function SalesAnalyticsPage() {
       </div>
 
       {/* Key Performance Indicators */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+      <ResponsiveGrid columns={{ xs: 2, md: 4 }} className="gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
@@ -127,7 +137,7 @@ export default function SalesAnalyticsPage() {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </ResponsiveGrid>
 
       {/* Analytics Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -432,6 +442,6 @@ export default function SalesAnalyticsPage() {
           </div>
         </TabsContent>
       </Tabs>
-    </div>
+    </ResponsiveWrapper>
   );
 }

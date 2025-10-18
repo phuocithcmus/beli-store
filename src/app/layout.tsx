@@ -8,6 +8,12 @@ export const metadata: Metadata = {
   title: 'Clothing Store Management',
   description:
     'A comprehensive clothing store inventory and sales management system',
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 5,
+    userScalable: true,
+  },
 };
 
 export default function RootLayout({
@@ -18,7 +24,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <div className="min-h-screen bg-background font-sans antialiased">
+        <div className="min-h-screen touch-manipulation bg-background font-sans antialiased">
           {children}
         </div>
       </body>

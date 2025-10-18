@@ -39,6 +39,7 @@ export interface RevenueEntry {
   id: string;
   productId: string;
   productVariantId?: string;
+  importPhaseId?: string; // Link to import phase for profit calculation
   productName: string;
   variantDetails?: string;
   amount: number; // Gross revenue amount
@@ -210,6 +211,7 @@ export interface ProductVariantFormData {
 export interface RevenueEntryFormData {
   productId: string;
   productVariantId?: string;
+  importPhaseId?: string; // Optional import phase selection
   amount: string; // String for form input
   quantity: string; // String for form input
   salesChannel: string;

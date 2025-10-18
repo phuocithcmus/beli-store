@@ -7,6 +7,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  ResponsiveWrapper,
+  ResponsiveGrid,
+} from '@/components/layout/ResponsiveWrapper';
+import { useIsMobile } from '@/hooks/useResponsive';
 import { storageService } from '@/lib/storage';
 import { ProductVariantCard } from '@/features/productVariants/components/ProductVariantCard';
 import { ProductVariantDialog } from '@/features/productVariants/components/ProductVariantDialog';
@@ -47,6 +52,7 @@ type SortOption =
 
 export default function VariantsPage() {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredVariants, setFilteredVariants] = useState<ProductVariant[]>(
@@ -180,9 +186,10 @@ export default function VariantsPage() {
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleVariantSave = (variant: ProductVariant) => {
     try {
-      storageService.saveProductVariant(variant);
+      //   storageService.saveProductVariant(variant);
       loadData(); // Refresh data - this will also update product quantities
       setSelectedProductId(''); // Clear selection after creating
     } catch (error) {
@@ -220,11 +227,15 @@ export default function VariantsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <ResponsiveWrapper>
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div
+        className={`flex ${isMobile ? 'flex-col gap-4' : 'items-center justify-between'}`}
+      >
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1
+            className={`font-bold tracking-tight ${isMobile ? 'text-2xl' : 'text-3xl'}`}
+          >
             Product Variants
           </h1>
           <p className="text-muted-foreground">
@@ -272,7 +283,7 @@ export default function VariantsPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+      <ResponsiveGrid columns={{ xs: 2, md: 4 }} className="gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
@@ -339,7 +350,7 @@ export default function VariantsPage() {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </ResponsiveGrid>
 
       {/* Controls */}
       <Card>
@@ -677,6 +688,6 @@ export default function VariantsPage() {
           })}
         </div>
       )}
-    </div>
+    </ResponsiveWrapper>
   );
 }

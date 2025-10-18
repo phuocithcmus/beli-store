@@ -153,7 +153,7 @@ export const ImportFeeFormSchema = z.object({
 export const ChannelFeeStructureSchema = z
   .object({
     id: z.string().uuid(),
-    salesChannelId: z.string().uuid(),
+    salesChannelId: z.string(),
     percentageRate: z
       .number()
       .min(0, 'Percentage rate cannot be negative')
@@ -307,6 +307,7 @@ export const RevenueEntrySchema = z.object({
   id: z.string().uuid(),
   productId: z.string().uuid(),
   productVariantId: z.string().uuid().optional(),
+  importPhaseId: z.string().uuid().optional(), // Link to import phase for profit calculation
   productName: z.string().min(1),
   variantDetails: z.string().optional(),
   amount: z.number().min(0), // Gross revenue amount

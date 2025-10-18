@@ -69,7 +69,7 @@ export function ProductList({
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       {/* Filters */}
       <div className="flex flex-col gap-4 rounded-lg bg-muted/50 p-4 sm:flex-row">
         <div className="flex-1">
