@@ -227,7 +227,9 @@ export default function VariantsPage() {
   }
 
   return (
-    <ResponsiveWrapper className={`${isMobile ? 'flex flex-col gap-4' : ''}`}>
+    <ResponsiveWrapper
+      className={`${isMobile ? 'flex flex-col gap-4' : 'flex flex-col gap-4'}`}
+    >
       {/* Header */}
       <div
         className={`flex ${isMobile ? 'flex-col gap-4' : 'items-center justify-between'}`}

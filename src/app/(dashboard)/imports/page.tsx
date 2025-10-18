@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import {
   ResponsiveWrapper,
   ResponsiveGrid,
-  ResponsiveStack,
 } from '@/components/layout/ResponsiveWrapper';
 import { useIsMobile } from '@/hooks/useResponsive';
 import { touchOptimized } from '@/lib/utils/responsive';
@@ -173,7 +172,9 @@ export default function ImportsPage() {
   return (
     <ResponsiveWrapper className="space-y-6">
       {/* Header */}
-      <ResponsiveStack spacing={isMobile ? 'sm' : 'md'}>
+      <div
+        className={`flex ${isMobile ? 'flex-col gap-4' : 'items-center justify-between'}`}
+      >
         <div>
           <h1
             className={`font-bold tracking-tight ${isMobile ? 'text-2xl' : 'text-3xl'}`}
@@ -185,7 +186,6 @@ export default function ImportsPage() {
             variants
           </p>
         </div>
-
         <Button
           onClick={() => setShowNewPhaseForm(true)}
           className={`bg-blue-600 hover:bg-blue-700 ${isMobile ? 'w-full' : 'max-w-content'} ${touchOptimized('', { touchClasses: 'min-h-[48px]' })}`}
@@ -193,7 +193,7 @@ export default function ImportsPage() {
           <Plus className="mr-2 h-4 w-4" />
           New Import Phase
         </Button>
-      </ResponsiveStack>
+      </div>
 
       {/* Summary Cards */}
       <ResponsiveGrid columns={{ xs: 1, md: 3 }} gap="lg">

@@ -43,7 +43,9 @@ export function FeeCalculator({
   salesChannels,
 }: FeeCalculatorProps) {
   const [revenueAmount, setRevenueAmount] = useState<string>('1000000');
-  const [selectedChannelId, setSelectedChannelId] = useState<string>('');
+  const [selectedChannelId, setSelectedChannelId] = useState<
+    string | undefined
+  >(undefined);
   const [calculations, setCalculations] = useState<
     Record<string, CalculationResult>
   >({});
@@ -52,7 +54,7 @@ export function FeeCalculator({
     const amount = parseFloat(revenueAmount) || 0;
     const newCalculations: Record<string, CalculationResult> = {};
 
-    if (selectedChannelId) {
+    if (selectedChannelId && selectedChannelId !== 'all') {
       // Calculate for selected channel only
       const feeStructure = channelFeeStructures.find(
         (cfs) => cfs.salesChannelId === selectedChannelId
@@ -121,14 +123,16 @@ export function FeeCalculator({
             <div className="space-y-2">
               <Label htmlFor="channel-select">Sales Channel (Optional)</Label>
               <Select
-                value={selectedChannelId}
-                onValueChange={setSelectedChannelId}
+                value={selectedChannelId || 'all'}
+                onValueChange={(value) =>
+                  setSelectedChannelId(value === 'all' ? undefined : value)
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Calculate for all channels" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Channels</SelectItem>
+                  <SelectItem value="all">All Channels</SelectItem>
                   {channelFeeStructures.map((cfs) => {
                     const channel = salesChannels.find(
                       (c) => c.id === cfs.salesChannelId

@@ -162,7 +162,7 @@ export default function ProductsPage() {
             </div>
           </ResponsiveStack>
         ) : (
-          <div className="flex gap-2">
+          <div className="ml-auto flex gap-2">
             <ExportButton variant="outline" />
             <Button variant="outline">
               <Upload className="mr-2 h-4 w-4" />

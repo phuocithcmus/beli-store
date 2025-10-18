@@ -6,6 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
   ResponsiveWrapper,
   ResponsiveGrid,
 } from '@/components/layout/ResponsiveWrapper';
@@ -42,7 +49,7 @@ export default function FeeManagementPage() {
   const [editingFee, setEditingFee] = useState<ChannelFeeStructure | null>(
     null
   );
-  const [showForm, setShowForm] = useState(false);
+  const [showDialog, setShowDialog] = useState(false);
   const [activeTab, setActiveTab] = useState('channel-fees');
 
   // Form states
@@ -115,7 +122,7 @@ export default function FeeManagementPage() {
       minimumFee: fee.minimumFee?.toString() || '',
       maximumFee: fee.maximumFee?.toString() || '',
     });
-    setShowForm(true);
+    setShowDialog(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -138,7 +145,7 @@ export default function FeeManagementPage() {
       maximumFee: '',
     });
     setEditingFee(null);
-    setShowForm(false);
+    setShowDialog(false);
   };
 
   const getChannelName = (channelId: string) => {
@@ -267,25 +274,39 @@ export default function FeeManagementPage() {
         </TabsList>
 
         <TabsContent value="channel-fees" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Channel Fee Structures</h2>
-            <Button onClick={() => setShowForm(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Fee Structure
-            </Button>
-          </div>
+          <div
+            className={`flex ${isMobile ? 'flex-col gap-4' : 'items-center justify-between'}`}
+          >
+            <h2 className={`font-semibold ${isMobile ? 'text-lg' : 'text-xl'}`}>
+              Channel Fee Structures
+            </h2>
 
-          {showForm && (
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  {editingFee ? 'Edit Fee Structure' : 'Add New Fee Structure'}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+            <Dialog open={showDialog} onOpenChange={setShowDialog}>
+              <DialogTrigger asChild>
+                <Button
+                  onClick={() => setShowDialog(true)}
+                  className={isMobile ? 'w-full' : ''}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  {isMobile ? 'Add Fee' : 'Add Fee Structure'}
+                </Button>
+              </DialogTrigger>
+              <DialogContent
+                className={`${isMobile ? 'w-[95vw] max-w-none' : 'max-w-2xl'}`}
+              >
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingFee
+                      ? 'Edit Fee Structure'
+                      : 'Add New Fee Structure'}
+                  </DialogTitle>
+                </DialogHeader>
+
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
+                  <div
+                    className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}
+                  >
+                    <div className={isMobile ? 'col-span-1' : 'col-span-2'}>
                       <Label htmlFor="salesChannelId">Sales Channel</Label>
                       <Select
                         value={formData.salesChannelId}
@@ -369,18 +390,23 @@ export default function FeeManagementPage() {
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
-                    <Button type="submit">
+                  <div className={`flex gap-2 ${isMobile ? 'flex-col' : ''}`}>
+                    <Button type="submit" className={isMobile ? 'w-full' : ''}>
                       {editingFee ? 'Update' : 'Create'} Fee Structure
                     </Button>
-                    <Button type="button" variant="outline" onClick={resetForm}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={resetForm}
+                      className={isMobile ? 'w-full' : ''}
+                    >
                       Cancel
                     </Button>
                   </div>
                 </form>
-              </CardContent>
-            </Card>
-          )}
+              </DialogContent>
+            </Dialog>
+          </div>
 
           <div className="grid gap-4">
             {channelFees.map((fee) => (

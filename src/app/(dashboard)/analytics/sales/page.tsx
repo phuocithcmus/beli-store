@@ -142,7 +142,7 @@ export default function SalesAnalyticsPage() {
       {/* Analytics Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList
-          className={`grid w-full ${isMobile ? 'grid-cols-2' : 'grid-cols-4'}`}
+          className={`mt-4 grid w-full ${isMobile ? 'grid-cols-2' : 'grid-cols-4'}`}
         >
           <TabsTrigger value="overview" className={isMobile ? 'text-xs' : ''}>
             {isMobile ? 'Overview' : 'Overview'}
