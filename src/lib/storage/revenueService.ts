@@ -268,8 +268,36 @@ export class RevenueService {
       data.metadata.recordCounts.revenueEntries = data.revenueEntries.length;
       data.metadata.lastBackup = now;
 
-      // Note: Inventory is NOT updated when creating revenue entries
-      // Revenue tracking is separate from inventory management to avoid double-counting
+      // Update variant sold count if a specific variant was sold
+      if (entryData.productVariantId) {
+        const variant = data.productVariants.find(
+          (v) => v.id === entryData.productVariantId
+        );
+        if (variant) {
+          variant.soldCount += parseInt(entryData.quantity);
+          variant.updatedAt = now;
+        }
+      } else {
+        // If no specific variant is selected, find the first available variant
+        // or distribute the sale across variants (simplified approach: use first variant)
+        const productVariants = data.productVariants.filter(
+          (v) => v.productId === entryData.productId
+        );
+        if (productVariants.length > 0) {
+          // Use the first variant as a default for general product sales
+          const firstVariant = productVariants[0];
+          firstVariant.soldCount += parseInt(entryData.quantity);
+          firstVariant.updatedAt = now;
+        }
+      }
+
+      // Update product timestamp
+      const productToUpdate = data.products.find(
+        (p) => p.id === entryData.productId
+      );
+      if (productToUpdate) {
+        productToUpdate.updatedAt = now;
+      }
 
       this.saveData(data);
 
@@ -462,6 +490,78 @@ export class RevenueService {
           channelFee > 0 ? currentEntry.amount - channelFee : undefined;
       }
 
+      // Handle inventory updates for quantity changes
+      if (updates.quantity) {
+        const oldQuantity = data.revenueEntries[entryIndex].quantity;
+        const newQuantity = parseInt(updates.quantity);
+        const quantityDifference = newQuantity - oldQuantity;
+
+        // Update variant sold count based on quantity change
+        if (currentEntry.productVariantId) {
+          const variant = data.productVariants.find(
+            (v) => v.id === currentEntry.productVariantId
+          );
+          if (variant) {
+            variant.soldCount += quantityDifference;
+            variant.updatedAt = new Date();
+
+            // Ensure soldCount doesn't go negative
+            if (variant.soldCount < 0) {
+              variant.soldCount = 0;
+            }
+          }
+        } else {
+          // Handle general product sales (use first variant as default)
+          const productVariants = data.productVariants.filter(
+            (v) => v.productId === currentEntry.productId
+          );
+          if (productVariants.length > 0) {
+            const firstVariant = productVariants[0];
+            firstVariant.soldCount += quantityDifference;
+            firstVariant.updatedAt = new Date();
+
+            // Ensure soldCount doesn't go negative
+            if (firstVariant.soldCount < 0) {
+              firstVariant.soldCount = 0;
+            }
+          }
+        }
+      }
+
+      // Handle variant changes - need to adjust soldCount between variants
+      if (updates.productVariantId !== undefined) {
+        const oldVariantId = data.revenueEntries[entryIndex].productVariantId;
+        const newVariantId = updates.productVariantId;
+        const quantity = currentEntry.quantity;
+
+        // Remove quantity from old variant
+        if (oldVariantId) {
+          const oldVariant = data.productVariants.find(
+            (v) => v.id === oldVariantId
+          );
+          if (oldVariant) {
+            oldVariant.soldCount -= quantity;
+            oldVariant.updatedAt = new Date();
+
+            // Ensure soldCount doesn't go negative
+            if (oldVariant.soldCount < 0) {
+              oldVariant.soldCount = 0;
+            }
+          }
+        }
+
+        // Add quantity to new variant
+        if (newVariantId) {
+          const newVariant = data.productVariants.find(
+            (v) => v.id === newVariantId
+          );
+          if (newVariant) {
+            newVariant.soldCount += quantity;
+            newVariant.updatedAt = new Date();
+          }
+        }
+      }
+
       currentEntry.updatedAt = new Date();
 
       this.saveData(data);
@@ -495,6 +595,39 @@ export class RevenueService {
           data: false,
           error: 'Revenue entry not found',
         };
+      }
+
+      const entryToDelete = data.revenueEntries[entryIndex];
+
+      // Update variant sold count to reflect the deletion
+      if (entryToDelete.productVariantId) {
+        const variant = data.productVariants.find(
+          (v) => v.id === entryToDelete.productVariantId
+        );
+        if (variant) {
+          variant.soldCount -= entryToDelete.quantity;
+          variant.updatedAt = new Date();
+
+          // Ensure soldCount doesn't go negative
+          if (variant.soldCount < 0) {
+            variant.soldCount = 0;
+          }
+        }
+      } else {
+        // Handle general product sales (use first variant as default)
+        const productVariants = data.productVariants.filter(
+          (v) => v.productId === entryToDelete.productId
+        );
+        if (productVariants.length > 0) {
+          const firstVariant = productVariants[0];
+          firstVariant.soldCount -= entryToDelete.quantity;
+          firstVariant.updatedAt = new Date();
+
+          // Ensure soldCount doesn't go negative
+          if (firstVariant.soldCount < 0) {
+            firstVariant.soldCount = 0;
+          }
+        }
       }
 
       data.revenueEntries.splice(entryIndex, 1);
