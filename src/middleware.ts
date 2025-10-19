@@ -26,8 +26,6 @@ const protectedRoutes = [
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  console.log(`Middleware invoked for path: ${pathname}`);
-
   // Skip middleware for static files, images, and Next.js internals
   if (
     pathname.startsWith('/_next/') ||
@@ -85,10 +83,6 @@ export function middleware(request: NextRequest) {
   // Handle protected routes
   const isProtectedRoute = protectedRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`)
-  );
-
-  console.log(
-    `Middleware: isProtectedRoute=${isProtectedRoute}, isAuthenticated=${isAuthenticated}, pathname=${pathname}`
   );
 
   if (isProtectedRoute && !isAuthenticated) {

@@ -359,26 +359,30 @@ class ApiClient {
     getAll: (params?: PaginationParams & { productId?: string }) =>
       this.get<PaginationResponse<ProductVariant>>(
         buildUrl(
-          '/variants',
+          '/product-variants',
           params as Record<string, string | number | boolean | undefined>
         )
       ),
 
-    getById: (id: string) => this.get<ProductVariant>(`/variants/${id}`),
+    getById: (id: string) =>
+      this.get<ProductVariant>(`/product-variants/${id}`),
 
     getByProductId: (productId: string) =>
-      this.get<ProductVariant[]>(`/variants/product/${productId}`),
+      this.get<ProductVariant[]>(`/product-variants/product/${productId}`),
 
     create: (data: CreateProductVariantDto) =>
-      this.post<ProductVariant>('/variants', data),
+      this.post<ProductVariant>('/product-variants', data),
 
     update: (id: string, data: UpdateProductVariantDto) =>
-      this.put<ProductVariant>(`/variants/${id}`, data),
+      this.put<ProductVariant>(`/product-variants/${id}`, data),
 
-    delete: (id: string) => this.delete<{ message: string }>(`/variants/${id}`),
+    delete: (id: string) =>
+      this.delete<{ message: string }>(`/product-variants/${id}`),
 
     updateInventory: (id: string, quantity: number) =>
-      this.put<ProductVariant>(`/variants/${id}/inventory`, { quantity }),
+      this.put<ProductVariant>(`/product-variants/${id}/inventory`, {
+        quantity,
+      }),
   };
 
   // Import Phases API
@@ -386,23 +390,24 @@ class ApiClient {
     getAll: (params?: PaginationParams & { status?: string }) =>
       this.get<PaginationResponse<ImportPhase>>(
         buildUrl(
-          '/imports',
+          '/import-phases',
           params as Record<string, string | number | boolean | undefined>
         )
       ),
 
-    getById: (id: string) => this.get<ImportPhase>(`/imports/${id}`),
+    getById: (id: string) => this.get<ImportPhase>(`/import-phases/${id}`),
 
     create: (data: CreateImportPhaseDto) =>
-      this.post<ImportPhase>('/imports', data),
+      this.post<ImportPhase>('/import-phases', data),
 
     update: (id: string, data: UpdateImportPhaseDto) =>
-      this.put<ImportPhase>(`/imports/${id}`, data),
+      this.put<ImportPhase>(`/import-phases/${id}`, data),
 
-    delete: (id: string) => this.delete<{ message: string }>(`/imports/${id}`),
+    delete: (id: string) =>
+      this.delete<{ message: string }>(`/import-phases/${id}`),
 
     updateStatus: (id: string, status: 'active' | 'completed') =>
-      this.put<ImportPhase>(`/imports/${id}/status`, { status }),
+      this.put<ImportPhase>(`/import-phases/${id}/status`, { status }),
   };
 
   // Transactions API
@@ -444,26 +449,27 @@ class ApiClient {
     ) =>
       this.get<PaginationResponse<RevenueEntry>>(
         buildUrl(
-          '/revenue',
+          '/revenue-entries',
           params as Record<string, string | number | boolean | undefined>
         )
       ),
 
-    getById: (id: string) => this.get<RevenueEntry>(`/revenue/${id}`),
+    getById: (id: string) => this.get<RevenueEntry>(`/revenue-entries/${id}`),
 
     create: (data: CreateRevenueEntryDto) =>
-      this.post<RevenueEntry>('/revenue', data),
+      this.post<RevenueEntry>('/revenue-entries', data),
 
     update: (id: string, data: UpdateRevenueEntryDto) =>
-      this.put<RevenueEntry>(`/revenue/${id}`, data),
+      this.put<RevenueEntry>(`/revenue-entries/${id}`, data),
 
-    delete: (id: string) => this.delete<{ message: string }>(`/revenue/${id}`),
+    delete: (id: string) =>
+      this.delete<{ message: string }>(`/revenue-entries/${id}`),
 
     getAnalytics: (params?: { period?: string; salesChannel?: string }) =>
-      this.get<AnalyticsData>(buildUrl('/revenue/analytics', params)),
+      this.get<AnalyticsData>(buildUrl('/revenue-entries/analytics', params)),
 
     getProfitAnalysis: (params?: { dateFrom?: string; dateTo?: string }) =>
-      this.get<AnalyticsData>(buildUrl('/revenue/profit', params)),
+      this.get<AnalyticsData>(buildUrl('/revenue-entries/profit', params)),
   };
 
   // Sales Channels API
@@ -476,27 +482,24 @@ class ApiClient {
     ) =>
       this.get<PaginationResponse<SalesChannel>>(
         buildUrl(
-          '/channels/sales-channels',
+          '/sales-channels',
           params as Record<string, string | number | boolean | undefined>
         )
       ),
 
-    getById: (id: string) =>
-      this.get<SalesChannel>(`/channels/sales-channels/${id}`),
+    getById: (id: string) => this.get<SalesChannel>(`/sales-channels/${id}`),
 
     create: (data: CreateSalesChannelDto) =>
-      this.post<SalesChannel>('/channels/sales-channels', data),
+      this.post<SalesChannel>('/sales-channels', data),
 
     update: (id: string, data: UpdateSalesChannelDto) =>
-      this.put<SalesChannel>(`/channels/sales-channels/${id}`, data),
+      this.put<SalesChannel>(`/sales-channels/${id}`, data),
 
     delete: (id: string) =>
-      this.delete<{ message: string }>(`/channels/sales-channels/${id}`),
+      this.delete<{ message: string }>(`/sales-channels/${id}`),
 
     getAnalytics: (id?: string) =>
-      this.get<AnalyticsData>(
-        `/channels/sales-channels${id ? `/${id}` : ''}/analytics`
-      ),
+      this.get<AnalyticsData>(`/sales-channels${id ? `/${id}` : ''}/analytics`),
   };
 
   // Channel Fee Structures API
@@ -509,41 +512,41 @@ class ApiClient {
     ) =>
       this.get<PaginationResponse<ChannelFeeStructure>>(
         buildUrl(
-          '/channels/fee-structures',
+          '/channel-fee-structures',
           params as Record<string, string | number | boolean | undefined>
         )
       ),
 
     getById: (id: string) =>
-      this.get<ChannelFeeStructure>(`/channels/fee-structures/${id}`),
+      this.get<ChannelFeeStructure>(`/channels-fee-structures/${id}`),
 
     getBySalesChannel: (salesChannelId: string) =>
       this.get<ChannelFeeStructure[]>(
-        `/channels/fee-structures/channel/${salesChannelId}`
+        `/channels-fee-structures/channel/${salesChannelId}`
       ),
 
     create: (data: CreateChannelFeeStructureDto) =>
-      this.post<ChannelFeeStructure>('/channels/fee-structures', data),
+      this.post<ChannelFeeStructure>('/channels-fee-structures', data),
 
     update: (id: string, data: UpdateChannelFeeStructureDto) =>
-      this.put<ChannelFeeStructure>(`/channels/fee-structures/${id}`, data),
+      this.put<ChannelFeeStructure>(`/channels-fee-structures/${id}`, data),
 
     delete: (id: string) =>
-      this.delete<{ message: string }>(`/channels/fee-structures/${id}`),
+      this.delete<{ message: string }>(`/channels-fee-structures/${id}`),
 
     calculateFee: (id: string, amount: number, quantity?: number) =>
       this.post<{ feeAmount: number; netAmount: number }>(
-        `/channels/fee-structures/${id}/calculate`,
+        `/channels-fee-structures/${id}/calculate`,
         { amount, quantity }
       ),
 
     getAnalytics: (id?: string) =>
       this.get<AnalyticsData>(
-        `/channels/fee-structures${id ? `/${id}` : ''}/analytics`
+        `/channels-fee-structures${id ? `/${id}` : ''}/analytics`
       ),
 
     getStatistics: (id: string) =>
-      this.get<AnalyticsData>(`/channels/fee-structures/${id}/statistics`),
+      this.get<AnalyticsData>(`/channels-fee-structures/${id}/statistics`),
   };
 
   // Validation & System Health API
