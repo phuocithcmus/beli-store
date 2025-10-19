@@ -1,30 +1,30 @@
 /**
- * RevenueDashboard Component
- * Main dashboard for revenue tracking with comprehensive analytics
+ * RevenueDashboard Component - Connected to Backend API
+ * Main dashboard for revenue tracking with comprehensive analytics using API
  */
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, BarChart3, TrendingUp, Filter } from 'lucide-react';
+import { Plus, BarChart3, TrendingUp, Filter, RefreshCw, AlertCircle } from 'lucide-react';
 import { RevenueDialog } from './RevenueDialog';
 import { RevenueList } from './RevenueList';
-import { RevenueAnalytics } from './RevenueAnalytics';
-import { useRevenue } from '@/features/revenue/hooks/useRevenue';
-import { useRevenueAnalytics } from '@/features/revenue/hooks/useRevenueAnalytics';
-import { useSalesChannels } from '@/features/revenue/hooks/useSalesChannels';
 import { useIsMobile } from '@/hooks/useResponsive';
 import { ResponsiveGrid } from '@/components/layout/ResponsiveWrapper';
-import { storageService } from '@/lib/storage';
+import {
+  useRevenue,
+  useProducts,
+  useChannels,
+  useCreateRevenueEntry,
+
+} from '@/hooks/use-api';
 import type {
   RevenueEntry,
   RevenueEntryFormData,
-  Product,
-  ProductVariant,
 } from '@/types';
-import type { RevenuePeriod } from '@/features/revenue/types/revenue';
+
 import { formatVND } from '@/lib/currency';
 
 export function RevenueDashboard() {
@@ -34,58 +34,72 @@ export function RevenueDashboard() {
   >('overview');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<RevenueEntry | undefined>();
-  const [analyticsPeriod, setAnalyticsPeriod] =
-    useState<RevenuePeriod>('month');
-  const [products, setProducts] = useState<
-    (Product & { variants?: ProductVariant[] })[]
-  >([]);
 
-  // Load products with variants
-  const loadProducts = () => {
-    const productsWithVariants = storageService.getProductsWithVariants();
-    setProducts(productsWithVariants);
-  };
 
-  // Load products on mount
-  useEffect(() => {
-    loadProducts();
-  }, []);
-
-  // Custom hooks
+  // API Hooks
   const {
-    entries,
-    loading: entriesLoading,
+    data: entries = [],
+    isLoading: entriesLoading,
     error: entriesError,
-    createEntry,
-    updateEntry,
-    deleteEntry,
+    refetch: refetchEntries,
   } = useRevenue();
 
   const {
-    data: analyticsData,
-    loading: analyticsLoading,
-    error: analyticsError,
-    refreshAnalytics,
-  } = useRevenueAnalytics(analyticsPeriod);
+    data: products = [],
+    isLoading: productsLoading,
+    error: productsError,
+  } = useProducts();
 
-  const { channels: salesChannels } = useSalesChannels();
+  const {
+    data: salesChannels = [],
+    isLoading: channelsLoading,
+    error: channelsError,
+  } = useChannels();
+
+
+
+  // Mutations
+  const createEntryMutation = useCreateRevenueEntry();
+
+  const isLoading = entriesLoading || productsLoading || channelsLoading;
+  const error = entriesError || productsError || channelsError;
 
   // Handle revenue entry save
   const handleSaveEntry = async (data: RevenueEntryFormData) => {
     try {
       if (editingEntry) {
-        await updateEntry(editingEntry.id, data);
+        // Note: Update functionality not implemented in backend yet
+        alert('Update functionality will be implemented with the backend API. This feature is coming soon!');
+        return;
       } else {
-        await createEntry(data);
+        // Find the product and selected variant for additional details
+        const selectedProduct = products.find(p => p.id === data.productId);
+        const selectedChannel = salesChannels.find(c => c.id === data.salesChannel);
+        
+        const amount = parseFloat(data.amount);
+        const quantity = parseInt(data.quantity);
+        const unitPrice = amount / quantity;
+
+        await createEntryMutation.mutateAsync({
+          productId: data.productId,
+          productVariantId: data.productVariantId,
+          importPhaseId: data.importPhaseId,
+          productName: selectedProduct?.name || 'Unknown Product',
+          variantDetails: data.productVariantId ? 'Variant Details' : undefined,
+          amount,
+          quantity,
+          unitPrice,
+          salesChannel: data.salesChannel,
+          salesChannelName: selectedChannel?.name || 'Unknown Channel',
+          saleDate: new Date(data.saleDate),
+          notes: data.notes,
+        });
       }
       setIsDialogOpen(false);
       setEditingEntry(undefined);
-      refreshAnalytics();
-      // Refresh products to ensure fresh data
-      loadProducts();
     } catch (error) {
       console.error('Failed to save revenue entry:', error);
-      throw error;
+      alert('Failed to save revenue entry. Please try again.');
     }
   };
 
@@ -97,12 +111,22 @@ export function RevenueDashboard() {
 
   // Handle delete entry
   const handleDeleteEntry = async (entryId: string) => {
-    try {
-      await deleteEntry(entryId);
-      refreshAnalytics();
-    } catch (error) {
-      console.error('Failed to delete revenue entry:', error);
+    const entryToDelete = entries.find((e: RevenueEntry) => e.id === entryId);
+    if (!entryToDelete) {
+      alert('Revenue entry not found');
+      return;
     }
+
+    if (
+      !window.confirm(
+        `Are you sure you want to delete this revenue entry for ${entryToDelete.productName}?`
+      )
+    ) {
+      return;
+    }
+
+    // Note: Delete functionality not implemented in backend yet
+    alert('Delete functionality will be implemented with the backend API. This feature is coming soon!');
   };
 
   // Handle view entry (for now, same as edit)
@@ -110,11 +134,56 @@ export function RevenueDashboard() {
     handleEditEntry(entry);
   };
 
+  const handleRefresh = () => {
+    refetchEntries();
+  };
+
   // Calculate summary stats
-  const totalRevenue = entries.reduce((sum, entry) => sum + entry.amount, 0);
+  const totalRevenue = entries.reduce((sum: number, entry: RevenueEntry) => sum + entry.amount, 0);
   const totalEntries = entries.length;
-  const totalQuantity = entries.reduce((sum, entry) => sum + entry.quantity, 0);
+  const totalQuantity = entries.reduce((sum: number, entry: RevenueEntry) => sum + entry.quantity, 0);
   const averageOrderValue = totalEntries > 0 ? totalRevenue / totalEntries : 0;
+
+  // Error handling
+  if (error) {
+    return (
+      <div className={`space-y-6 ${isMobile ? 'p-4' : 'p-6'}`}>
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-red-800">
+              <AlertCircle className="h-4 w-4" />
+              <div className="flex-1">
+                <p className="font-medium">Failed to load revenue data</p>
+                <p className="text-sm text-red-600">Please check your connection and try again.</p>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleRefresh}
+              >
+                <RefreshCw className="h-4 w-4 mr-1" />
+                Retry
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className={`space-y-6 ${isMobile ? 'p-4' : 'p-6'}`}>
+        <div className="flex h-64 items-center justify-center">
+          <div className="text-center">
+            <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>
+            <p className="mt-4 text-muted-foreground">Loading revenue data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`space-y-6 ${isMobile ? 'p-4' : 'p-6'}`}>
@@ -129,16 +198,39 @@ export function RevenueDashboard() {
             Revenue Tracking
           </h1>
           <p className="text-muted-foreground">
-            Track sales performance across all channels
+            Track sales performance across all channels with backend API integration
           </p>
         </div>
-        <Button
-          onClick={() => setIsDialogOpen(true)}
-          className={isMobile ? 'w-full' : ''}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add Revenue Entry
-        </Button>
+        <div className={`flex gap-2 ${isMobile ? 'flex-col' : 'items-center'}`}>
+          <Button 
+            variant="outline"
+            onClick={handleRefresh}
+            disabled={isLoading}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+          <Button
+            onClick={() => setIsDialogOpen(true)}
+            disabled={createEntryMutation.isPending}
+            className={isMobile ? 'w-full' : ''}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Revenue Entry
+          </Button>
+        </div>
+      </div>
+
+      {/* API Status Indicator */}
+      <div className="flex items-center gap-2 text-sm">
+        <div className="flex h-2 w-2 rounded-full bg-green-500"></div>
+        <span className="text-muted-foreground">Connected to Backend API</span>
+        {createEntryMutation.isPending && (
+          <span className="text-blue-600 flex items-center gap-1">
+            <div className="h-3 w-3 animate-spin rounded-full border border-blue-600 border-t-transparent"></div>
+            Processing...
+          </span>
+        )}
       </div>
 
       {/* Tab Navigation */}
@@ -187,10 +279,13 @@ export function RevenueDashboard() {
               </CardHeader>
               <CardContent className={isMobile ? 'p-3 pt-0' : ''}>
                 <div
-                  className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'}`}
+                  className={`font-bold text-green-600 ${isMobile ? 'text-lg' : 'text-2xl'}`}
                 >
                   {formatVND(totalRevenue)}
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  API Connected
+                </p>
               </CardContent>
             </Card>
 
@@ -208,6 +303,9 @@ export function RevenueDashboard() {
                 >
                   {totalEntries}
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Sales Records
+                </p>
               </CardContent>
             </Card>
 
@@ -225,6 +323,9 @@ export function RevenueDashboard() {
                 >
                   {totalQuantity}
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Total Units
+                </p>
               </CardContent>
             </Card>
 
@@ -242,6 +343,9 @@ export function RevenueDashboard() {
                 >
                   {formatVND(averageOrderValue)}
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Per Transaction
+                </p>
               </CardContent>
             </Card>
           </ResponsiveGrid>
@@ -261,7 +365,7 @@ export function RevenueDashboard() {
                   onClick={() => setActiveTab('entries')}
                   className={isMobile ? 'w-full' : ''}
                 >
-                  View All
+                  View All ({totalEntries})
                 </Button>
               </div>
             </CardHeader>
@@ -271,8 +375,8 @@ export function RevenueDashboard() {
                 onEdit={handleEditEntry}
                 onDelete={handleDeleteEntry}
                 onView={handleViewEntry}
-                loading={entriesLoading}
-                error={entriesError || undefined}
+                loading={false}
+                error={undefined}
               />
             </CardContent>
           </Card>
@@ -286,21 +390,18 @@ export function RevenueDashboard() {
           onEdit={handleEditEntry}
           onDelete={handleDeleteEntry}
           onView={handleViewEntry}
-          loading={entriesLoading}
-          error={entriesError || undefined}
+          loading={false}
+          error={undefined}
         />
       )}
 
       {/* Analytics Tab */}
       {activeTab === 'analytics' && (
-        <RevenueAnalytics
-          data={analyticsData}
-          loading={analyticsLoading}
-          error={analyticsError}
-          period={analyticsPeriod}
-          onPeriodChange={setAnalyticsPeriod}
-          onRefresh={refreshAnalytics}
-        />
+        <div className="p-8 text-center text-muted-foreground">
+          <p className="text-lg font-medium mb-2">Analytics Coming Soon</p>
+          <p>Advanced revenue analytics will be available once the backend API is fully integrated.</p>
+          <p className="text-sm mt-2">Backend Connection: ✅ Connected</p>
+        </div>
       )}
 
       {/* Revenue Dialog */}

@@ -1,5 +1,5 @@
 /**
- * Product Variants Page
+ * Product Variants Page - Connected to Backend API
  * Global view of all product variants across all products
  */
 
@@ -8,11 +8,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  useVariants,
+  useProducts,
+  useCreateVariant,
+  useUpdateVariant,
+  useDeleteVariant,
+} from '@/hooks/use-api';
+import {
   ResponsiveWrapper,
   ResponsiveGrid,
 } from '@/components/layout/ResponsiveWrapper';
 import { useIsMobile } from '@/hooks/useResponsive';
-import { storageService } from '@/lib/storage';
 import { ProductVariantCard } from '@/features/productVariants/components/ProductVariantCard';
 import { ProductVariantDialog } from '@/features/productVariants/components/ProductVariantDialog';
 import { Button } from '@/components/ui/button';
@@ -37,8 +43,10 @@ import {
   AlertTriangle,
   Edit2,
   Trash2,
+  RefreshCw,
+  AlertCircle,
 } from 'lucide-react';
-import type { ProductVariant, Product } from '@/types';
+import type { ProductVariant } from '@/types';
 
 type ViewMode = 'grid' | 'list';
 type FilterOption = 'all' | 'in-stock' | 'low-stock' | 'out-of-stock';
@@ -53,12 +61,7 @@ type SortOption =
 export default function VariantsPage() {
   const router = useRouter();
   const isMobile = useIsMobile();
-  const [variants, setVariants] = useState<ProductVariant[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [filteredVariants, setFilteredVariants] = useState<ProductVariant[]>(
-    []
-  );
-  const [loading, setLoading] = useState(true);
+  const [filteredVariants, setFilteredVariants] = useState<ProductVariant[]>([]);
 
   // UI State
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -67,9 +70,27 @@ export default function VariantsPage() {
   const [sortBy, setSortBy] = useState<SortOption>('sku');
   const [selectedProductId, setSelectedProductId] = useState<string>('');
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  // API Hooks
+  const {
+    data: variants = [],
+    isLoading: variantsLoading,
+    error: variantsError,
+    refetch: refetchVariants,
+  } = useVariants();
+
+  const {
+    data: products = [],
+    isLoading: productsLoading,
+    error: productsError,
+    refetch: refetchProducts,
+  } = useProducts();
+
+  const createVariantMutation = useCreateVariant();
+  const updateVariantMutation = useUpdateVariant();
+  const deleteVariantMutation = useDeleteVariant();
+
+  const isLoading = variantsLoading || productsLoading;
+  const error = variantsError || productsError;
 
   const filterAndSortVariants = useCallback(() => {
     let filtered = [...variants];
@@ -130,7 +151,7 @@ export default function VariantsPage() {
             (a.inventoryCount - a.reservedCount - a.soldCount)
           );
         case 'created':
-          return b.createdAt.getTime() - a.createdAt.getTime();
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         default:
           return 0;
       }
@@ -143,59 +164,40 @@ export default function VariantsPage() {
     filterAndSortVariants();
   }, [filterAndSortVariants]);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [allVariants, allProducts] = await Promise.all([
-        Promise.resolve(storageService.getProductVariants()),
-        Promise.resolve(storageService.getProductsWithVariants()),
-      ]);
-
-      setVariants(allVariants);
-      setProducts(allProducts);
-    } catch (error) {
-      console.error('Error loading data:', error);
-    } finally {
-      setLoading(false);
-    }
+  const handleRefresh = () => {
+    refetchVariants();
+    refetchProducts();
   };
 
   const handleVariantEdit = (variant: ProductVariant) => {
     router.push(`/products/${variant.productId}#variant-${variant.id}`);
   };
 
-  const handleVariantDelete = (variantId: string) => {
-    try {
-      const variantToDelete = variants.find((v) => v.id === variantId);
-      if (!variantToDelete) {
-        alert('Variant not found');
-        return;
-      }
+  const handleVariantDelete = async (variantId: string) => {
+    const variantToDelete = variants.find((v) => v.id === variantId);
+    if (!variantToDelete) {
+      alert('Variant not found');
+      return;
+    }
 
-      if (
-        confirm(
-          `Are you sure you want to delete variant ${variantToDelete.sku}?`
-        )
-      ) {
-        storageService.deleteProductVariant(variantId);
-        loadData(); // Refresh data - this will also update product quantities
-      }
+    if (
+      !window.confirm(
+        `Are you sure you want to delete variant ${variantToDelete.sku}?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await deleteVariantMutation.mutateAsync(variantId);
     } catch (error) {
       console.error('Error deleting variant:', error);
       alert('Failed to delete variant. Please try again.');
     }
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleVariantSave = (variant: ProductVariant) => {
-    try {
-      //   storageService.saveProductVariant(variant);
-      loadData(); // Refresh data - this will also update product quantities
-      setSelectedProductId(''); // Clear selection after creating
-    } catch (error) {
-      console.error('Error saving variant:', error);
-      alert('Failed to save variant. Please try again.');
-    }
+  const handleVariantSave = () => {
+    setSelectedProductId(''); // Clear selection after creating
   };
 
   // Calculate statistics
@@ -213,7 +215,35 @@ export default function VariantsPage() {
     (v) => v.inventoryCount - v.reservedCount - v.soldCount <= 0
   ).length;
 
-  if (loading) {
+  // Error handling
+  if (error) {
+    return (
+      <ResponsiveWrapper className="space-y-6">
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-red-800">
+              <AlertCircle className="h-4 w-4" />
+              <div className="flex-1">
+                <p className="font-medium">Failed to load variants</p>
+                <p className="text-sm text-red-600">Please check your connection and try again.</p>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleRefresh}
+              >
+                <RefreshCw className="h-4 w-4 mr-1" />
+                Retry
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </ResponsiveWrapper>
+    );
+  }
+
+  // Loading state
+  if (isLoading) {
     return (
       <ResponsiveWrapper>
         <div className="flex h-64 items-center justify-center">
@@ -241,10 +271,18 @@ export default function VariantsPage() {
             Product Variants
           </h1>
           <p className="text-muted-foreground">
-            Manage variants across all products in your inventory
+            Manage variants across all products with backend API integration
           </p>
         </div>
         <div className={`flex gap-2 ${isMobile ? 'flex-col' : 'items-center'}`}>
+          <Button 
+            variant="outline"
+            onClick={handleRefresh}
+            disabled={isLoading}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
           {products.length > 0 && (
             <div
               className={`flex gap-2 ${isMobile ? 'flex-col' : 'items-center'}`}
@@ -270,7 +308,7 @@ export default function VariantsPage() {
                   mode="create"
                   onSave={handleVariantSave}
                   trigger={
-                    <Button>
+                    <Button disabled={createVariantMutation.isPending}>
                       <Package className="mr-2 h-4 w-4" />
                       Add Variant
                     </Button>
@@ -284,6 +322,18 @@ export default function VariantsPage() {
             View Products
           </Button>
         </div>
+      </div>
+
+      {/* API Status Indicator */}
+      <div className="flex items-center gap-2 text-sm">
+        <div className="flex h-2 w-2 rounded-full bg-green-500"></div>
+        <span className="text-muted-foreground">Connected to Backend API</span>
+        {(createVariantMutation.isPending || updateVariantMutation.isPending || deleteVariantMutation.isPending) && (
+          <span className="text-blue-600 flex items-center gap-1">
+            <div className="h-3 w-3 animate-spin rounded-full border border-blue-600 border-t-transparent"></div>
+            Processing...
+          </span>
+        )}
       </div>
 
       {/* Summary Cards */}
@@ -505,7 +555,7 @@ export default function VariantsPage() {
                           mode="create"
                           onSave={handleVariantSave}
                           trigger={
-                            <Button>
+                            <Button disabled={createVariantMutation.isPending}>
                               <Package className="mr-2 h-4 w-4" />
                               Create First Variant
                             </Button>
@@ -657,6 +707,7 @@ export default function VariantsPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleVariantDelete(variant.id)}
+                              disabled={deleteVariantMutation.isPending}
                               className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
                             >
                               <Trash2 className="h-4 w-4" />

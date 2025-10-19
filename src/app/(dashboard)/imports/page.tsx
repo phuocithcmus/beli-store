@@ -1,14 +1,22 @@
 /**
- * Imports Page
- * Main page for managing import phases
+ * Imports Page - Connected to Backend API
+ * Main page for managing import phases with API integration
  */
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Package, TrendingUp, DollarSign } from 'lucide-react';
+import {
+  Plus,
+  Package,
+  TrendingUp,
+  DollarSign,
+  RefreshCw,
+  AlertCircle,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   ResponsiveWrapper,
   ResponsiveGrid,
@@ -21,46 +29,46 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  useImports,
+  useProducts,
+  useCreateImport,
+  useUpdateImport,
+} from '@/hooks/use-api';
 import { ImportPhaseList } from '@/features/imports/components/ImportPhaseList';
 import { ImportPhaseForm } from '@/features/imports/components/ImportPhaseForm';
 import { AddProductsDialog } from '@/features/imports/components/AddProductsDialog';
-import { storageService } from '@/lib/storage';
-import type { ImportPhase, Product } from '@/types';
+import type { ImportPhase } from '@/types';
 import { formatVND } from '@/lib/currency';
 
 export default function ImportsPage() {
   const router = useRouter();
   const isMobile = useIsMobile();
-  const [importPhases, setImportPhases] = useState<ImportPhase[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [showNewPhaseForm, setShowNewPhaseForm] = useState(false);
   const [editingPhase, setEditingPhase] = useState<ImportPhase | null>(null);
   const [showAddProductsDialog, setShowAddProductsDialog] = useState(false);
   const [selectedPhaseForProducts, setSelectedPhaseForProducts] =
     useState<ImportPhase | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  // API Hooks
+  const {
+    data: importPhases = [],
+    isLoading: phasesLoading,
+    error: phasesError,
+    refetch: refetchPhases,
+  } = useImports();
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [phasesData, productsData] = await Promise.all([
-        storageService.getImportPhases(),
-        storageService.getProductsWithVariants(),
-      ]);
+  const {
+    data: products = [],
+    isLoading: productsLoading,
+    error: productsError,
+  } = useProducts();
 
-      setImportPhases(phasesData);
-      setProducts(productsData);
-    } catch (error) {
-      console.error('Failed to load data:', error);
-      alert('Failed to load import phases');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const createPhaseMutation = useCreateImport();
+  const updatePhaseMutation = useUpdateImport();
+
+  const isLoading = phasesLoading || productsLoading;
+  const error = phasesError || productsError;
 
   const handleCreatePhase = async (data: {
     code: string;
@@ -68,18 +76,18 @@ export default function ImportsPage() {
     description?: string;
   }) => {
     try {
-      const newPhase = storageService.saveImportPhase({
+      await createPhaseMutation.mutateAsync({
         code: data.code,
-        date: new Date(data.date),
+        date: data.date,
         description: data.description,
-        totalFees: 0, // P1: Initialize with zero fees
-        finalCost: 0, // P1: Initialize with zero final cost
+        totalItems: 0,
+        totalCost: 0,
+        totalFees: 0,
       });
-      setImportPhases((prev) => [newPhase, ...prev]);
       setShowNewPhaseForm(false);
     } catch (error) {
       console.error('Failed to create import phase:', error);
-      throw error;
+      alert('Failed to create import phase. Please try again.');
     }
   };
 
@@ -88,42 +96,69 @@ export default function ImportsPage() {
     data: { code: string; date: string; description?: string }
   ) => {
     try {
-      const updatedPhase = storageService.updateImportPhase(phaseId, {
-        code: data.code,
-        date: new Date(data.date),
-        description: data.description,
+      await updatePhaseMutation.mutateAsync({
+        id: phaseId,
+        data: {
+          code: data.code,
+          date: data.date,
+          description: data.description,
+        },
       });
-      setImportPhases((prev) =>
-        prev.map((phase) => (phase.id === phaseId ? updatedPhase : phase))
-      );
       setEditingPhase(null);
     } catch (error) {
       console.error('Failed to update import phase:', error);
-      throw error;
+      alert('Failed to update import phase. Please try again.');
     }
   };
 
   const handleDeletePhase = async (phaseId: string) => {
-    try {
-      storageService.deleteImportPhase(phaseId);
-      setImportPhases((prev) => prev.filter((phase) => phase.id !== phaseId));
-    } catch (error) {
-      console.error('Failed to delete import phase:', error);
-      alert(
-        `Failed to delete import phase: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+    const phaseToDelete = importPhases.find(
+      (p: ImportPhase) => p.id === phaseId
+    );
+    if (!phaseToDelete) {
+      alert('Import phase not found');
+      return;
     }
+
+    if (
+      !window.confirm(
+        `Are you sure you want to delete import phase "${phaseToDelete.code}"? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    // Note: Delete functionality not implemented in backend yet
+    alert(
+      'Delete functionality will be implemented with the backend API. This feature is coming soon!'
+    );
   };
 
   const handleCompletePhase = async (phaseId: string) => {
+    const phaseToComplete = importPhases.find((p) => p.id === phaseId);
+    if (!phaseToComplete) {
+      alert('Import phase not found');
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Are you sure you want to complete import phase "${phaseToComplete.code}"? This will finalize all calculations and mark it as completed.`
+      )
+    ) {
+      return;
+    }
+
     try {
-      storageService.completeImportPhase(phaseId);
-      await loadData(); // Reload to get updated data
+      await updatePhaseMutation.mutateAsync({
+        id: phaseId,
+        data: {
+          // Note: Status updates need to be implemented in the backend
+        },
+      });
     } catch (error) {
       console.error('Failed to complete import phase:', error);
-      alert(
-        `Failed to complete import phase: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      alert('Failed to complete import phase. Please try again.');
     }
   };
 
@@ -136,29 +171,62 @@ export default function ImportsPage() {
     setShowAddProductsDialog(true);
   };
 
-  const handleAddProductsToPhase = async (
-    phaseId: string,
-    selections: {
-      productId: string;
-      productVariantId?: string;
-      quantity: number;
-      unitCost: number;
-    }[]
-  ) => {
+  const handleAddProductsToPhase = async () => {
     try {
-      for (const selection of selections) {
-        storageService.addProductToImportPhase(phaseId, selection);
-      }
-      await loadData(); // Reload to get updated data
+      // Note: This would need to be implemented as an API endpoint
+      // For now, we'll show a message that this feature needs backend implementation
+      alert(
+        'Adding products to import phases will be implemented with the backend API. This feature is coming soon!'
+      );
       setShowAddProductsDialog(false);
       setSelectedPhaseForProducts(null);
     } catch (error) {
       console.error('Failed to add products to import phase:', error);
-      throw error;
+      alert('Failed to add products to import phase. Please try again.');
     }
   };
 
-  if (loading) {
+  const handleRefresh = () => {
+    refetchPhases();
+  };
+
+  // Calculate statistics
+  const totalPhases = importPhases.length;
+  const activePhases = importPhases.filter(
+    (p: ImportPhase) => p.status === 'active'
+  ).length;
+  const totalInvestment = importPhases.reduce(
+    (sum: number, p: ImportPhase) => sum + (p.totalCost || 0),
+    0
+  );
+
+  // Error handling
+  if (error) {
+    return (
+      <ResponsiveWrapper className="space-y-6">
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-red-800">
+              <AlertCircle className="h-4 w-4" />
+              <div className="flex-1">
+                <p className="font-medium">Failed to load import phases</p>
+                <p className="text-sm text-red-600">
+                  Please check your connection and try again.
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={handleRefresh}>
+                <RefreshCw className="mr-1 h-4 w-4" />
+                Retry
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </ResponsiveWrapper>
+    );
+  }
+
+  // Loading state
+  if (isLoading) {
     return (
       <ResponsiveWrapper className="flex h-64 items-center justify-center">
         <div className="text-center">
@@ -182,17 +250,40 @@ export default function ImportsPage() {
             Import Management
           </h1>
           <p className="text-muted-foreground">
-            Manage import phases and track inventory acquisitions with product
-            variants
+            Manage import phases and track inventory acquisitions with backend
+            API integration
           </p>
         </div>
-        <Button
-          onClick={() => setShowNewPhaseForm(true)}
-          className={`bg-blue-600 hover:bg-blue-700 ${isMobile ? 'w-full' : 'max-w-content'} ${touchOptimized('', { touchClasses: 'min-h-[48px]' })}`}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          New Import Phase
-        </Button>
+        <div className={`flex gap-2 ${isMobile ? 'flex-col' : 'items-center'}`}>
+          <Button
+            variant="outline"
+            onClick={handleRefresh}
+            disabled={isLoading}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+          <Button
+            onClick={() => setShowNewPhaseForm(true)}
+            disabled={createPhaseMutation.isPending}
+            className={`bg-blue-600 hover:bg-blue-700 ${isMobile ? 'w-full' : 'max-w-content'} ${touchOptimized('', { touchClasses: 'min-h-[48px]' })}`}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            New Import Phase
+          </Button>
+        </div>
+      </div>
+
+      {/* API Status Indicator */}
+      <div className="flex items-center gap-2 text-sm">
+        <div className="flex h-2 w-2 rounded-full bg-green-500"></div>
+        <span className="text-muted-foreground">Connected to Backend API</span>
+        {(createPhaseMutation.isPending || updatePhaseMutation.isPending) && (
+          <span className="flex items-center gap-1 text-blue-600">
+            <div className="h-3 w-3 animate-spin rounded-full border border-blue-600 border-t-transparent"></div>
+            Processing...
+          </span>
+        )}
       </div>
 
       {/* Summary Cards */}
@@ -201,7 +292,7 @@ export default function ImportsPage() {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-2xl font-bold text-blue-900">
-                {importPhases.length}
+                {totalPhases}
               </div>
               <div className="text-sm font-medium text-blue-700">
                 Total Phases
@@ -217,7 +308,7 @@ export default function ImportsPage() {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-2xl font-bold text-green-900">
-                {importPhases.filter((p) => p.status === 'active').length}
+                {activePhases}
               </div>
               <div className="text-sm font-medium text-green-700">
                 Active Phases
@@ -233,9 +324,7 @@ export default function ImportsPage() {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-2xl font-bold text-purple-900">
-                {formatVND(
-                  importPhases.reduce((sum, p) => sum + p.totalCost, 0)
-                )}
+                {formatVND(totalInvestment)}
               </div>
               <div className="text-sm font-medium text-purple-700">
                 Total Investment

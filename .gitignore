@@ -66,6 +66,21 @@ logs/
 test-results/
 playwright-report/
 
+# Backend specific
+backend/node_modules/
+backend/dist/
+backend/build/
+backend/.env*
+backend/*.log
+backend/coverage/
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# MongoDB
+data/
+
 specs
 CLAUDE.md
 PHASE_4_SUMMARY.md

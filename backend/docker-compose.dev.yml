@@ -1,0 +1,21 @@
+version: '3.8'
+services:
+  mongodb:
+    image: mongo:7
+    container_name: clothing-store-mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: clothing_store_dev
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init:/docker-entrypoint-initdb.d
+    
+  redis:
+    image: redis:7-alpine
+    container_name: clothing-store-redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  mongodb_data:

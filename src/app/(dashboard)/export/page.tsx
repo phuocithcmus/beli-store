@@ -5,7 +5,7 @@
 
 'use client';
 
-import { ExportDashboard } from '@/features/export/components/ExportDashboard';
+import { ExportDashboard } from '@/features/export/components/ExportDashboard-api';
 import { ResponsiveWrapper } from '@/components/layout/ResponsiveWrapper';
 
 export default function ExportPage() {

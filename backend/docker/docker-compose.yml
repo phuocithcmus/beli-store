@@ -1,0 +1,39 @@
+# Production Docker Compose
+version: '3.8'
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: clothing-store-backend
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      MONGODB_URI: mongodb://mongodb:27017/clothing_store_prod
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - mongodb
+      - redis
+    restart: unless-stopped
+    
+  mongodb:
+    image: mongo:7
+    container_name: clothing-store-mongo-prod
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: clothing_store_prod
+    volumes:
+      - mongodb_prod_data:/data/db
+    restart: unless-stopped
+    
+  redis:
+    image: redis:7-alpine
+    container_name: clothing-store-redis-prod
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+volumes:
+  mongodb_prod_data:
