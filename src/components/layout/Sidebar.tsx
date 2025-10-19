@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import {
@@ -213,7 +214,7 @@ function SidebarContent({
           return (
             <Link
               key={item.name}
-              href={item.href}
+              href={item.href as any}
               onClick={onLinkClick}
               className={cn(
                 'flex items-center rounded-lg text-sm font-medium transition-colors',

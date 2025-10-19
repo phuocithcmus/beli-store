@@ -71,35 +71,35 @@ export default function SalesAnalyticsPageAPI() {
 
   // API Hooks
   const {
-    data: products = [],
+    data: productsResponse,
     isLoading: productsLoading,
     error: productsError,
     refetch: refetchProducts,
   } = useProducts();
 
   const {
-    data: variants = [],
+    data: variantsResponse,
     isLoading: variantsLoading,
     error: variantsError,
     refetch: refetchVariants,
   } = useVariants();
 
   const {
-    data: revenueEntries = [],
+    data: revenueResponse,
     isLoading: revenueLoading,
     error: revenueError,
     refetch: refetchRevenue,
   } = useRevenue();
 
   const {
-    data: importPhases = [],
+    data: importsResponse,
     isLoading: importsLoading,
     error: importsError,
     refetch: refetchImports,
   } = useImports();
 
   const {
-    data: channels = [],
+    data: channelsResponse,
     isLoading: channelsLoading,
     error: channelsError,
     refetch: refetchChannels,
@@ -152,6 +152,13 @@ export default function SalesAnalyticsPageAPI() {
         productPerformance: [],
       };
     }
+
+    // Extract data from pagination responses
+    const products = productsResponse?.data || [];
+    const variants = variantsResponse?.data || [];
+    const revenueEntries = revenueResponse?.data || [];
+    const importPhases = importsResponse?.data || [];
+    const channels = channelsResponse?.data || [];
 
     // Calculate total revenue
     const totalRevenue = revenueEntries.reduce(
@@ -231,11 +238,11 @@ export default function SalesAnalyticsPageAPI() {
       productPerformance,
     };
   }, [
-    products,
-    variants,
-    revenueEntries,
-    importPhases,
-    channels,
+    productsResponse,
+    variantsResponse,
+    revenueResponse,
+    importsResponse,
+    channelsResponse,
     isLoading,
     error,
   ]);

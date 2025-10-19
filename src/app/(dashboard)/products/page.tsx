@@ -7,7 +7,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from '@/hooks/use-api';
+import {
+  useProducts,
+  useCreateProduct,
+  useUpdateProduct,
+  useDeleteProduct,
+} from '@/hooks/use-api';
 import { ProductList } from '@/features/products/components/ProductList';
 import { ProductDialog } from '@/features/products/components/ProductDialog';
 import { ExportButton } from '@/features/export/components/ExportButton';
@@ -40,18 +45,24 @@ export default function ProductsPage() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<'shirt' | 'pants' | ''>('');
+  const [categoryFilter, setCategoryFilter] = useState<'shirt' | 'pants' | ''>(
+    ''
+  );
 
   // API Hooks
-  const { 
-    data: products = [], 
-    isLoading, 
-    error, 
-    refetch 
-  } = useProducts({ 
+  const {
+    data: productsResponse,
+    isLoading,
+    error,
+    refetch,
+  } = useProducts({
     search: searchQuery || undefined,
-    category: categoryFilter || undefined 
+    category: categoryFilter || undefined,
   });
+
+  const products = productsResponse?.data || [];
+
+  console.log('Fetched products:', products);
 
   const createProductMutation = useCreateProduct();
   const updateProductMutation = useUpdateProduct();
@@ -105,14 +116,12 @@ export default function ProductsPage() {
               <AlertCircle className="h-4 w-4" />
               <div className="flex-1">
                 <p className="font-medium">Failed to load products</p>
-                <p className="text-sm text-red-600">Please check your connection and try again.</p>
+                <p className="text-sm text-red-600">
+                  Please check your connection and try again.
+                </p>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => refetch()}
-              >
-                <RefreshCw className="h-4 w-4 mr-1" />
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                <RefreshCw className="mr-1 h-4 w-4" />
                 Retry
               </Button>
             </div>
@@ -174,7 +183,7 @@ export default function ProductsPage() {
           </ResponsiveStack>
         ) : (
           <div className="ml-auto flex gap-2">
-            <Button 
+            <Button
               variant="outline"
               onClick={() => refetch()}
               disabled={isLoading}
@@ -187,7 +196,7 @@ export default function ProductsPage() {
               <Upload className="mr-2 h-4 w-4" />
               Import
             </Button>
-            <Button 
+            <Button
               onClick={() => setShowAddDialog(true)}
               disabled={createProductMutation.isPending}
             >
@@ -202,8 +211,10 @@ export default function ProductsPage() {
       <div className="flex items-center gap-2 text-sm">
         <div className="flex h-2 w-2 rounded-full bg-green-500"></div>
         <span className="text-muted-foreground">Connected to Backend API</span>
-        {(createProductMutation.isPending || updateProductMutation.isPending || deleteProductMutation.isPending) && (
-          <span className="text-blue-600 flex items-center gap-1">
+        {(createProductMutation.isPending ||
+          updateProductMutation.isPending ||
+          deleteProductMutation.isPending) && (
+          <span className="flex items-center gap-1 text-blue-600">
             <div className="h-3 w-3 animate-spin rounded-full border border-blue-600 border-t-transparent"></div>
             Processing...
           </span>
@@ -280,10 +291,14 @@ export default function ProductsPage() {
               <div>
                 <p className="text-sm font-medium">Avg. Selling Price</p>
                 <p className="text-xl font-bold">
-                  {totalProducts > 0 
-                    ? formatVND(products.reduce((sum, p) => sum + (p.sellingPrice || 0), 0) / totalProducts)
-                    : formatVND(0)
-                  }
+                  {totalProducts > 0
+                    ? formatVND(
+                        products.reduce(
+                          (sum, p) => sum + (p.sellingPrice || 0),
+                          0
+                        ) / totalProducts
+                      )
+                    : formatVND(0)}
                 </p>
               </div>
             </div>
@@ -292,20 +307,22 @@ export default function ProductsPage() {
       </ResponsiveGrid>
 
       {/* Search and Filter Controls */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row">
         <div className="flex-1">
           <input
             type="text"
             placeholder="Search products..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
         <select
           value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value as 'shirt' | 'pants' | '')}
-          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+          onChange={(e) =>
+            setCategoryFilter(e.target.value as 'shirt' | 'pants' | '')
+          }
+          className="rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
         >
           <option value="">All Categories</option>
           <option value="shirt">Shirts</option>

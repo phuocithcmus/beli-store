@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { useIsMobile, useResponsiveSidebar } from '@/hooks/useResponsive';
 import { touchOptimized, typography } from '@/lib/utils/responsive';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/auth-context';
+import { LogoutDialog } from '@/features/auth/components/LogoutDialog';
 
 interface HeaderProps {
   title?: string;
@@ -21,6 +23,7 @@ export function Header({
 }: HeaderProps) {
   const isMobile = useIsMobile();
   const { toggle } = useResponsiveSidebar();
+  const { isAuthenticated } = useAuth();
 
   return (
     <header className={cn('safe-top border-b bg-background', className)}>
@@ -107,6 +110,20 @@ export function Header({
             <User className="h-4 w-4" />
             {!isMobile && <span className="sr-only">Profile</span>}
           </Button>
+
+          {/* Logout button - only show when authenticated */}
+          {isAuthenticated && (
+            <LogoutDialog
+              variant="ghost"
+              size={isMobile ? 'sm' : 'icon'}
+              className={cn(
+                'touch-target tap-highlight-none text-red-600 hover:bg-red-50 hover:text-red-700',
+                touchOptimized('', {
+                  touchClasses: 'active:scale-95',
+                })
+              )}
+            />
+          )}
         </div>
       </div>
     </header>

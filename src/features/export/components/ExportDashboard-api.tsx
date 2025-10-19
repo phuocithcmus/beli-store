@@ -46,46 +46,54 @@ export function ExportDashboard() {
 
   // API Hooks for data counts
   const {
-    data: products = [],
+    data: productsResponse,
     isLoading: productsLoading,
     error: productsError,
     refetch: refetchProducts,
   } = useProducts();
 
   const {
-    data: variants = [],
+    data: variantsResponse,
     isLoading: variantsLoading,
     error: variantsError,
     refetch: refetchVariants,
   } = useVariants();
 
   const {
-    data: revenueEntries = [],
+    data: revenueResponse,
     isLoading: revenueLoading,
     error: revenueError,
     refetch: refetchRevenue,
   } = useRevenue();
 
   const {
-    data: importPhases = [],
+    data: importsResponse,
     isLoading: importsLoading,
     error: importsError,
     refetch: refetchImports,
   } = useImports();
 
   const {
-    data: channels = [],
+    data: channelsResponse,
     isLoading: channelsLoading,
     error: channelsError,
     refetch: refetchChannels,
   } = useChannels();
 
   const {
-    data: feeStructures = [],
+    data: feesResponse,
     isLoading: feesLoading,
     error: feesError,
     refetch: refetchFees,
   } = useFees();
+
+  // Extract data from pagination responses
+  const products = productsResponse?.data || [];
+  const variants = variantsResponse?.data || [];
+  const revenueEntries = revenueResponse?.data || [];
+  const importPhases = importsResponse?.data || [];
+  const channels = channelsResponse?.data || [];
+  const feeStructures = feesResponse?.data || [];
 
   const isLoading =
     productsLoading ||

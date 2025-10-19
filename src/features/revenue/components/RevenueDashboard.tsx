@@ -8,7 +8,14 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, BarChart3, TrendingUp, Filter, RefreshCw, AlertCircle } from 'lucide-react';
+import {
+  Plus,
+  BarChart3,
+  TrendingUp,
+  Filter,
+  RefreshCw,
+  AlertCircle,
+} from 'lucide-react';
 import { RevenueDialog } from './RevenueDialog';
 import { RevenueList } from './RevenueList';
 import { useIsMobile } from '@/hooks/useResponsive';
@@ -18,12 +25,8 @@ import {
   useProducts,
   useChannels,
   useCreateRevenueEntry,
-
 } from '@/hooks/use-api';
-import type {
-  RevenueEntry,
-  RevenueEntryFormData,
-} from '@/types';
+import type { RevenueEntry, RevenueEntryFormData } from '@/types';
 
 import { formatVND } from '@/lib/currency';
 
@@ -35,28 +38,30 @@ export function RevenueDashboard() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<RevenueEntry | undefined>();
 
-
   // API Hooks
   const {
-    data: entries = [],
+    data: revenueResponse,
     isLoading: entriesLoading,
     error: entriesError,
     refetch: refetchEntries,
   } = useRevenue();
 
   const {
-    data: products = [],
+    data: productsResponse,
     isLoading: productsLoading,
     error: productsError,
   } = useProducts();
 
   const {
-    data: salesChannels = [],
+    data: channelsResponse,
     isLoading: channelsLoading,
     error: channelsError,
   } = useChannels();
 
-
+  // Extract data from pagination responses
+  const entries = revenueResponse?.data || [];
+  const products = productsResponse?.data || [];
+  const salesChannels = channelsResponse?.data || [];
 
   // Mutations
   const createEntryMutation = useCreateRevenueEntry();
@@ -69,13 +74,17 @@ export function RevenueDashboard() {
     try {
       if (editingEntry) {
         // Note: Update functionality not implemented in backend yet
-        alert('Update functionality will be implemented with the backend API. This feature is coming soon!');
+        alert(
+          'Update functionality will be implemented with the backend API. This feature is coming soon!'
+        );
         return;
       } else {
         // Find the product and selected variant for additional details
-        const selectedProduct = products.find(p => p.id === data.productId);
-        const selectedChannel = salesChannels.find(c => c.id === data.salesChannel);
-        
+        const selectedProduct = products.find((p) => p.id === data.productId);
+        const selectedChannel = salesChannels.find(
+          (c) => c.id === data.salesChannel
+        );
+
         const amount = parseFloat(data.amount);
         const quantity = parseInt(data.quantity);
         const unitPrice = amount / quantity;
@@ -126,7 +135,9 @@ export function RevenueDashboard() {
     }
 
     // Note: Delete functionality not implemented in backend yet
-    alert('Delete functionality will be implemented with the backend API. This feature is coming soon!');
+    alert(
+      'Delete functionality will be implemented with the backend API. This feature is coming soon!'
+    );
   };
 
   // Handle view entry (for now, same as edit)
@@ -139,9 +150,15 @@ export function RevenueDashboard() {
   };
 
   // Calculate summary stats
-  const totalRevenue = entries.reduce((sum: number, entry: RevenueEntry) => sum + entry.amount, 0);
+  const totalRevenue = entries.reduce(
+    (sum: number, entry: RevenueEntry) => sum + entry.amount,
+    0
+  );
   const totalEntries = entries.length;
-  const totalQuantity = entries.reduce((sum: number, entry: RevenueEntry) => sum + entry.quantity, 0);
+  const totalQuantity = entries.reduce(
+    (sum: number, entry: RevenueEntry) => sum + entry.quantity,
+    0
+  );
   const averageOrderValue = totalEntries > 0 ? totalRevenue / totalEntries : 0;
 
   // Error handling
@@ -154,14 +171,12 @@ export function RevenueDashboard() {
               <AlertCircle className="h-4 w-4" />
               <div className="flex-1">
                 <p className="font-medium">Failed to load revenue data</p>
-                <p className="text-sm text-red-600">Please check your connection and try again.</p>
+                <p className="text-sm text-red-600">
+                  Please check your connection and try again.
+                </p>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handleRefresh}
-              >
-                <RefreshCw className="h-4 w-4 mr-1" />
+              <Button variant="outline" size="sm" onClick={handleRefresh}>
+                <RefreshCw className="mr-1 h-4 w-4" />
                 Retry
               </Button>
             </div>
@@ -178,7 +193,9 @@ export function RevenueDashboard() {
         <div className="flex h-64 items-center justify-center">
           <div className="text-center">
             <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>
-            <p className="mt-4 text-muted-foreground">Loading revenue data...</p>
+            <p className="mt-4 text-muted-foreground">
+              Loading revenue data...
+            </p>
           </div>
         </div>
       </div>
@@ -198,11 +215,12 @@ export function RevenueDashboard() {
             Revenue Tracking
           </h1>
           <p className="text-muted-foreground">
-            Track sales performance across all channels with backend API integration
+            Track sales performance across all channels with backend API
+            integration
           </p>
         </div>
         <div className={`flex gap-2 ${isMobile ? 'flex-col' : 'items-center'}`}>
-          <Button 
+          <Button
             variant="outline"
             onClick={handleRefresh}
             disabled={isLoading}
@@ -226,7 +244,7 @@ export function RevenueDashboard() {
         <div className="flex h-2 w-2 rounded-full bg-green-500"></div>
         <span className="text-muted-foreground">Connected to Backend API</span>
         {createEntryMutation.isPending && (
-          <span className="text-blue-600 flex items-center gap-1">
+          <span className="flex items-center gap-1 text-blue-600">
             <div className="h-3 w-3 animate-spin rounded-full border border-blue-600 border-t-transparent"></div>
             Processing...
           </span>
@@ -283,7 +301,7 @@ export function RevenueDashboard() {
                 >
                   {formatVND(totalRevenue)}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="mt-1 text-xs text-muted-foreground">
                   API Connected
                 </p>
               </CardContent>
@@ -303,7 +321,7 @@ export function RevenueDashboard() {
                 >
                   {totalEntries}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="mt-1 text-xs text-muted-foreground">
                   Sales Records
                 </p>
               </CardContent>
@@ -323,7 +341,7 @@ export function RevenueDashboard() {
                 >
                   {totalQuantity}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="mt-1 text-xs text-muted-foreground">
                   Total Units
                 </p>
               </CardContent>
@@ -343,7 +361,7 @@ export function RevenueDashboard() {
                 >
                   {formatVND(averageOrderValue)}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="mt-1 text-xs text-muted-foreground">
                   Per Transaction
                 </p>
               </CardContent>
@@ -398,9 +416,12 @@ export function RevenueDashboard() {
       {/* Analytics Tab */}
       {activeTab === 'analytics' && (
         <div className="p-8 text-center text-muted-foreground">
-          <p className="text-lg font-medium mb-2">Analytics Coming Soon</p>
-          <p>Advanced revenue analytics will be available once the backend API is fully integrated.</p>
-          <p className="text-sm mt-2">Backend Connection: ✅ Connected</p>
+          <p className="mb-2 text-lg font-medium">Analytics Coming Soon</p>
+          <p>
+            Advanced revenue analytics will be available once the backend API is
+            fully integrated.
+          </p>
+          <p className="mt-2 text-sm">Backend Connection: ✅ Connected</p>
         </div>
       )}
 

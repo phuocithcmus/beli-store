@@ -52,17 +52,20 @@ export default function ImportsPage() {
 
   // API Hooks
   const {
-    data: importPhases = [],
+    data: importsResponse,
     isLoading: phasesLoading,
     error: phasesError,
     refetch: refetchPhases,
   } = useImports();
 
   const {
-    data: products = [],
+    data: productsResponse,
     isLoading: productsLoading,
     error: productsError,
   } = useProducts();
+
+  const importPhases = importsResponse?.data || [];
+  const products = productsResponse?.data || [];
 
   const createPhaseMutation = useCreateImport();
   const updatePhaseMutation = useUpdateImport();

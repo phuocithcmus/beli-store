@@ -9,12 +9,16 @@ import { TransactionsModule } from './transactions/transactions.module';
 import { RevenueEntriesModule } from './revenue/revenue-entries.module';
 import { ChannelsModule } from './channels/channels.module';
 import { ValidationModule } from './validation/validation.module';
+import authConfig from './config/auth.config';
+import appConfig from './config/app.config';
+import databaseConfig from './config/database.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: [`.env.${process.env.NODE_ENV || 'development'}`, '.env.local', '.env'],
+      load: [authConfig, appConfig, databaseConfig],
     }),
     MongooseModule.forRootAsync({
       useFactory: () => ({

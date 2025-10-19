@@ -6,6 +6,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { User, UserSchema } from './schemas/user.schema';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
+import { AuthService } from './auth.service';
+import { AuthController } from './auth.controller';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Module({
   imports: [
@@ -13,16 +16,31 @@ import { GoogleStrategy } from './strategies/google.strategy';
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('auth.jwt.secret'),
-        signOptions: {
-          expiresIn: configService.get<string>('auth.jwt.expiresIn') || ('24h' as any),
-        },
-      }),
+      useFactory: (configService: ConfigService) => {
+        const secret =
+          configService.get<string>('auth.jwt.secret') ||
+          configService.get<string>('JWT_SECRET') ||
+          process.env.JWT_SECRET ||
+          'dev-secret-key-change-in-production';
+
+        const expiresIn =
+          configService.get<string>('auth.jwt.expiresIn') ||
+          configService.get<string>('JWT_EXPIRES_IN') ||
+          process.env.JWT_EXPIRES_IN ||
+          '24h';
+
+        return {
+          secret,
+          signOptions: {
+            expiresIn: expiresIn as any,
+          },
+        };
+      },
       inject: [ConfigService],
     }),
   ],
-  providers: [JwtStrategy, GoogleStrategy],
-  exports: [JwtModule, PassportModule],
+  controllers: [AuthController],
+  providers: [AuthService, JwtStrategy, GoogleStrategy, JwtAuthGuard],
+  exports: [AuthService, JwtModule, PassportModule, JwtAuthGuard],
 })
 export class AuthModule {}

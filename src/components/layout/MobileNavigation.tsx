@@ -4,6 +4,7 @@
  * Includes hamburger menu, bottom navigation, and responsive behaviors
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React from 'react';
@@ -29,7 +30,14 @@ import { navigation, touchOptimized } from '@/lib/utils/responsive';
 /**
  * Navigation items configuration
  */
-const NAVIGATION_ITEMS = [
+interface NavigationItem {
+  label: string;
+  href: string;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  isActive: (pathname: string) => boolean;
+}
+
+const NAVIGATION_ITEMS: NavigationItem[] = [
   {
     label: 'Dashboard',
     href: '/',
@@ -159,7 +167,7 @@ export function MobileNavigation({ className }: MobileNavigationProps) {
               return (
                 <Link
                   key={item.href}
-                  href={item.href}
+                  href={item.href as any}
                   onClick={close}
                   className={cn(
                     'flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors',
@@ -191,7 +199,7 @@ export function MobileNavigation({ className }: MobileNavigationProps) {
               return (
                 <Link
                   key={item.href}
-                  href={item.href}
+                  href={item.href as any}
                   onClick={close}
                   className={cn(
                     'flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors',
@@ -242,7 +250,7 @@ export function MobileBottomNavigation({ className }: MobileNavigationProps) {
         return (
           <Link
             key={item.href}
-            href={item.href}
+            href={item.href as any}
             className={cn(
               navigation.bottomNavItem,
               'text-xs transition-colors',

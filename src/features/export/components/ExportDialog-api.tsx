@@ -68,12 +68,20 @@ export function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
   const [exportError, setExportError] = useState<string | null>(null);
 
   // API Hooks
-  const { data: products = [], isLoading: productsLoading } = useProducts();
-  const { data: variants = [], isLoading: variantsLoading } = useVariants();
-  const { data: revenueEntries = [], isLoading: revenueLoading } = useRevenue();
-  const { data: importPhases = [], isLoading: importsLoading } = useImports();
-  const { data: channels = [], isLoading: channelsLoading } = useChannels();
-  const { data: feeStructures = [], isLoading: feesLoading } = useFees();
+  const { data: productsResponse, isLoading: productsLoading } = useProducts();
+  const { data: variantsResponse, isLoading: variantsLoading } = useVariants();
+  const { data: revenueResponse, isLoading: revenueLoading } = useRevenue();
+  const { data: importsResponse, isLoading: importsLoading } = useImports();
+  const { data: channelsResponse, isLoading: channelsLoading } = useChannels();
+  const { data: feesResponse, isLoading: feesLoading } = useFees();
+
+  // Extract data from pagination responses
+  const products = productsResponse?.data || [];
+  const variants = variantsResponse?.data || [];
+  const revenueEntries = revenueResponse?.data || [];
+  const importPhases = importsResponse?.data || [];
+  const channels = channelsResponse?.data || [];
+  const feeStructures = feesResponse?.data || [];
 
   if (!isOpen) {
     return null;

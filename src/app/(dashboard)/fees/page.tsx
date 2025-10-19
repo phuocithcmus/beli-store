@@ -67,22 +67,23 @@ export default function FeeManagementPage() {
 
   // API Hooks
   const {
-    data: channelFees = [],
+    data: feesResponse,
     isLoading: feesLoading,
     error: feesError,
     refetch: refetchFees,
   } = useFees();
 
   const {
-    data: channels = [],
+    data: channelsResponse,
     isLoading: channelsLoading,
     error: channelsError,
   } = useChannels();
 
-  const {
-    isLoading: analyticsLoading,
-    refetch: refetchAnalytics,
-  } = useRevenueAnalytics();
+  const channelFees = feesResponse?.data || [];
+  const channels = channelsResponse?.data || [];
+
+  const { isLoading: analyticsLoading, refetch: refetchAnalytics } =
+    useRevenueAnalytics();
 
   // Mutations
   const createFeeMutation = useCreateFee();
@@ -112,7 +113,9 @@ export default function FeeManagementPage() {
     try {
       if (editingFee) {
         // Note: Update functionality not implemented in backend yet
-        alert('Update functionality will be implemented with the backend API. This feature is coming soon!');
+        alert(
+          'Update functionality will be implemented with the backend API. This feature is coming soon!'
+        );
         return;
       } else {
         await createFeeMutation.mutateAsync(feeData);
@@ -139,7 +142,9 @@ export default function FeeManagementPage() {
   };
 
   const handleDelete = async (id: string) => {
-    const feeToDelete = channelFees.find((f: ChannelFeeStructure) => f.id === id);
+    const feeToDelete = channelFees.find(
+      (f: ChannelFeeStructure) => f.id === id
+    );
     if (!feeToDelete) {
       alert('Fee structure not found');
       return;
@@ -155,7 +160,9 @@ export default function FeeManagementPage() {
     }
 
     // Note: Delete functionality not implemented in backend yet
-    alert('Delete functionality will be implemented with the backend API. This feature is coming soon!');
+    alert(
+      'Delete functionality will be implemented with the backend API. This feature is coming soon!'
+    );
   };
 
   const resetForm = () => {
@@ -186,7 +193,7 @@ export default function FeeManagementPage() {
   };
 
   const calculateTotalFees = (): number => {
-    // Temporary mock until fee analytics are properly implemented  
+    // Temporary mock until fee analytics are properly implemented
     return 65000000; // 65 million VND
   };
 
@@ -207,14 +214,12 @@ export default function FeeManagementPage() {
               <AlertCircle className="h-4 w-4" />
               <div className="flex-1">
                 <p className="font-medium">Failed to load fee data</p>
-                <p className="text-sm text-red-600">Please check your connection and try again.</p>
+                <p className="text-sm text-red-600">
+                  Please check your connection and try again.
+                </p>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handleRefresh}
-              >
-                <RefreshCw className="h-4 w-4 mr-1" />
+              <Button variant="outline" size="sm" onClick={handleRefresh}>
+                <RefreshCw className="mr-1 h-4 w-4" />
                 Retry
               </Button>
             </div>
@@ -252,11 +257,7 @@ export default function FeeManagementPage() {
             Comprehensive fee management with backend API integration
           </p>
         </div>
-        <Button 
-          variant="outline"
-          onClick={handleRefresh}
-          disabled={isLoading}
-        >
+        <Button variant="outline" onClick={handleRefresh} disabled={isLoading}>
           <RefreshCw className="mr-2 h-4 w-4" />
           Refresh
         </Button>
@@ -267,7 +268,7 @@ export default function FeeManagementPage() {
         <div className="flex h-2 w-2 rounded-full bg-green-500"></div>
         <span className="text-muted-foreground">Connected to Backend API</span>
         {createFeeMutation.isPending && (
-          <span className="text-blue-600 flex items-center gap-1">
+          <span className="flex items-center gap-1 text-blue-600">
             <div className="h-3 w-3 animate-spin rounded-full border border-blue-600 border-t-transparent"></div>
             Processing...
           </span>
@@ -301,10 +302,9 @@ export default function FeeManagementPage() {
               {formatCurrency(calculateTotalFees())}
             </div>
             <p className="text-xs text-muted-foreground">
-              {calculateTotalRevenue() > 0 
+              {calculateTotalRevenue() > 0
                 ? `${((calculateTotalFees() / calculateTotalRevenue()) * 100).toFixed(1)}% of revenue`
-                : 'No revenue data'
-              }
+                : 'No revenue data'}
             </p>
           </CardContent>
         </Card>
@@ -475,8 +475,8 @@ export default function FeeManagementPage() {
                   </div>
 
                   <div className={`flex gap-2 ${isMobile ? 'flex-col' : ''}`}>
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       disabled={createFeeMutation.isPending}
                       className={isMobile ? 'w-full' : ''}
                     >
@@ -506,9 +506,11 @@ export default function FeeManagementPage() {
                         <Badge variant="secondary">
                           {getChannelName(fee.salesChannelId)}
                         </Badge>
-                        <Badge 
-                          variant={fee.isActive ? "default" : "outline"}
-                          className={fee.isActive ? "bg-green-100 text-green-800" : ""}
+                        <Badge
+                          variant={fee.isActive ? 'default' : 'outline'}
+                          className={
+                            fee.isActive ? 'bg-green-100 text-green-800' : ''
+                          }
                         >
                           {fee.isActive ? 'Active' : 'Inactive'}
                         </Badge>
@@ -526,12 +528,12 @@ export default function FeeManagementPage() {
                           </>
                         )}
                         {fee.minimumFee && (
-                          <span className="text-muted-foreground ml-2">
+                          <span className="ml-2 text-muted-foreground">
                             (min: {formatCurrency(fee.minimumFee)})
                           </span>
                         )}
                         {fee.maximumFee && (
-                          <span className="text-muted-foreground ml-2">
+                          <span className="ml-2 text-muted-foreground">
                             (max: {formatCurrency(fee.maximumFee)})
                           </span>
                         )}
@@ -565,10 +567,15 @@ export default function FeeManagementPage() {
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-center text-muted-foreground">
-                    <Calculator className="mx-auto h-12 w-12 mb-4 text-muted-foreground/50" />
-                    <p className="text-lg font-medium mb-2">No fee structures configured</p>
-                    <p>Click &quot;Add Fee Structure&quot; to configure channel fees and start tracking commission costs.</p>
-                    <p className="text-sm mt-2">Backend Connection: ✅ Ready</p>
+                    <Calculator className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
+                    <p className="mb-2 text-lg font-medium">
+                      No fee structures configured
+                    </p>
+                    <p>
+                      Click &quot;Add Fee Structure&quot; to configure channel
+                      fees and start tracking commission costs.
+                    </p>
+                    <p className="mt-2 text-sm">Backend Connection: ✅ Ready</p>
                   </div>
                 </CardContent>
               </Card>

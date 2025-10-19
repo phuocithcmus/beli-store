@@ -61,7 +61,9 @@ type SortOption =
 export default function VariantsPage() {
   const router = useRouter();
   const isMobile = useIsMobile();
-  const [filteredVariants, setFilteredVariants] = useState<ProductVariant[]>([]);
+  const [filteredVariants, setFilteredVariants] = useState<ProductVariant[]>(
+    []
+  );
 
   // UI State
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -72,14 +74,14 @@ export default function VariantsPage() {
 
   // API Hooks
   const {
-    data: variants = [],
+    data: variantsResponse,
     isLoading: variantsLoading,
     error: variantsError,
     refetch: refetchVariants,
   } = useVariants();
 
   const {
-    data: products = [],
+    data: productsResponse,
     isLoading: productsLoading,
     error: productsError,
     refetch: refetchProducts,
@@ -89,10 +91,15 @@ export default function VariantsPage() {
   const updateVariantMutation = useUpdateVariant();
   const deleteVariantMutation = useDeleteVariant();
 
+  const variants = variantsResponse?.data || [];
+  const products = productsResponse?.data || [];
+
   const isLoading = variantsLoading || productsLoading;
   const error = variantsError || productsError;
 
   const filterAndSortVariants = useCallback(() => {
+    const variants = variantsResponse?.data || [];
+    const products = productsResponse?.data || [];
     let filtered = [...variants];
 
     // Apply search filter
@@ -151,14 +158,16 @@ export default function VariantsPage() {
             (a.inventoryCount - a.reservedCount - a.soldCount)
           );
         case 'created':
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
         default:
           return 0;
       }
     });
 
     setFilteredVariants(filtered);
-  }, [variants, products, searchQuery, filterBy, sortBy]);
+  }, [variantsResponse, productsResponse, searchQuery, filterBy, sortBy]);
 
   useEffect(() => {
     filterAndSortVariants();
@@ -225,14 +234,12 @@ export default function VariantsPage() {
               <AlertCircle className="h-4 w-4" />
               <div className="flex-1">
                 <p className="font-medium">Failed to load variants</p>
-                <p className="text-sm text-red-600">Please check your connection and try again.</p>
+                <p className="text-sm text-red-600">
+                  Please check your connection and try again.
+                </p>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handleRefresh}
-              >
-                <RefreshCw className="h-4 w-4 mr-1" />
+              <Button variant="outline" size="sm" onClick={handleRefresh}>
+                <RefreshCw className="mr-1 h-4 w-4" />
                 Retry
               </Button>
             </div>
@@ -275,7 +282,7 @@ export default function VariantsPage() {
           </p>
         </div>
         <div className={`flex gap-2 ${isMobile ? 'flex-col' : 'items-center'}`}>
-          <Button 
+          <Button
             variant="outline"
             onClick={handleRefresh}
             disabled={isLoading}
@@ -328,8 +335,10 @@ export default function VariantsPage() {
       <div className="flex items-center gap-2 text-sm">
         <div className="flex h-2 w-2 rounded-full bg-green-500"></div>
         <span className="text-muted-foreground">Connected to Backend API</span>
-        {(createVariantMutation.isPending || updateVariantMutation.isPending || deleteVariantMutation.isPending) && (
-          <span className="text-blue-600 flex items-center gap-1">
+        {(createVariantMutation.isPending ||
+          updateVariantMutation.isPending ||
+          deleteVariantMutation.isPending) && (
+          <span className="flex items-center gap-1 text-blue-600">
             <div className="h-3 w-3 animate-spin rounded-full border border-blue-600 border-t-transparent"></div>
             Processing...
           </span>
