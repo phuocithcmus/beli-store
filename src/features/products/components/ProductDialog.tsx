@@ -23,8 +23,8 @@ interface ProductFormData {
   category: 'shirt' | 'pants';
   remainingQuantity: number;
   soldQuantity: number;
-  purchasePrice: number;
-  sellingPrice?: number; // P3: Made optional for flexible pricing
+  purchasePrice?: number; // Made optional since pricing is handled via import phases
+  sellingPrice?: number; // Made optional since pricing is handled via revenue entries
 }
 
 interface ProductDialogProps {

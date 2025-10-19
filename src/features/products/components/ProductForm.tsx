@@ -18,8 +18,8 @@ interface ProductFormData {
   category: 'shirt' | 'pants';
   remainingQuantity: number;
   soldQuantity: number;
-  purchasePrice: number;
-  sellingPrice?: number; // P3: Made optional for flexible pricing
+  purchasePrice?: number; // Made optional since pricing is handled via import phases
+  sellingPrice?: number; // Made optional since pricing is handled via revenue entries
 }
 
 interface ProductFormProps {
@@ -73,17 +73,21 @@ export function ProductForm({
       newErrors.soldQuantity = 'Sold quantity cannot be negative';
     }
 
-    if (formData.purchasePrice <= 0) {
-      newErrors.purchasePrice = 'Purchase price must be positive';
+    // Validate purchase price only if provided (optional)
+    if (formData.purchasePrice !== undefined && formData.purchasePrice <= 0) {
+      newErrors.purchasePrice = 'Purchase price must be positive when set';
     }
 
-    // P3: Validate selling price only if it's provided (optional)
+    // Validate selling price only if it's provided (optional)
     if (formData.sellingPrice !== undefined) {
       if (formData.sellingPrice <= 0) {
         newErrors.sellingPrice = 'Selling price must be positive when set';
-      } else if (formData.sellingPrice <= formData.purchasePrice) {
+      } else if (
+        formData.purchasePrice !== undefined &&
+        formData.sellingPrice <= formData.purchasePrice
+      ) {
         newErrors.sellingPrice =
-          'Selling price must be greater than purchase price';
+          'Selling price must be greater than purchase price when both are set';
       }
     }
 
@@ -281,7 +285,7 @@ export function ProductForm({
       </div>
 
       {/* Profit Margin Display or Cost-Only Information */}
-      {formData.purchasePrice > 0 && (
+      {formData.purchasePrice !== undefined && formData.purchasePrice > 0 && (
         <div className="rounded-lg border p-4">
           {formData.sellingPrice &&
           formData.sellingPrice > formData.purchasePrice ? (

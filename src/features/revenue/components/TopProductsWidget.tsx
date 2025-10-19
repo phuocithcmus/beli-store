@@ -94,7 +94,7 @@ export function TopProductsWidget({
 
           const revenue = transaction.totalAmount;
           const profit =
-            (transaction.unitPrice - product.purchasePrice) *
+            (transaction.unitPrice - (product.purchasePrice || 0)) *
             transaction.quantity;
 
           if (productMetrics.has(product.id)) {
@@ -112,7 +112,9 @@ export function TopProductsWidget({
               totalQuantitySold: transaction.quantity,
               averagePrice: transaction.unitPrice,
               profitMargin:
-                product.purchasePrice > 0 && product.sellingPrice
+                product.purchasePrice &&
+                product.purchasePrice > 0 &&
+                product.sellingPrice
                   ? ((transaction.unitPrice - product.purchasePrice) /
                       transaction.unitPrice) *
                     100

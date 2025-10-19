@@ -39,8 +39,8 @@ export function ProductForm({
       name: initialData?.name || '',
       category: initialData?.category || 'shirt',
       remainingQuantity: initialData?.remainingQuantity || 0,
-      purchasePrice: initialData?.purchasePrice || 0,
-      sellingPrice: initialData?.sellingPrice || 0,
+      purchasePrice: initialData?.purchasePrice || undefined,
+      sellingPrice: initialData?.sellingPrice || undefined,
     },
   });
 
@@ -103,21 +103,19 @@ export function ProductForm({
           <div className="space-y-4">
             <FormField
               name="purchasePrice"
-              label="Purchase Price (VND)"
+              label="Purchase Price (VND) - Optional"
               type="number"
               step="1"
-              placeholder="0"
-              required
+              placeholder="Leave empty - will be set via import phases"
               disabled={isLoading}
             />
 
             <FormField
               name="sellingPrice"
-              label="Selling Price (VND)"
+              label="Selling Price (VND) - Optional"
               type="number"
               step="1"
-              placeholder="0"
-              required
+              placeholder="Leave empty - will be set via revenue entries"
               disabled={isLoading}
             />
           </div>

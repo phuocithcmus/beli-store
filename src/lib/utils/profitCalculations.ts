@@ -137,7 +137,7 @@ export function analyzeProductProfitability(
   status: 'profitable' | 'break-even' | 'loss' | 'no-pricing';
 } {
   const totalCost = calculateTotalCostWithFees(
-    product.purchasePrice,
+    product.purchasePrice || 0,
     importFees,
     product.remainingQuantity + product.soldQuantity
   );

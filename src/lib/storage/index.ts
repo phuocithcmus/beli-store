@@ -460,6 +460,9 @@ class LocalStorageService {
 
     const newProduct: Product = {
       ...product,
+      // Provide default values for optional price fields
+      purchasePrice: product.purchasePrice || 0,
+      sellingPrice: product.sellingPrice || undefined,
       id: this.generateId(),
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -2484,7 +2487,7 @@ class LocalStorageService {
       product.category,
       product.remainingQuantity.toString(),
       product.soldQuantity.toString(),
-      product.purchasePrice.toFixed(2),
+      (product.purchasePrice || 0).toFixed(2),
       product.sellingPrice?.toFixed(2) || 'Not set',
       product.createdAt.toISOString(),
     ]);
@@ -2855,7 +2858,8 @@ class LocalStorageService {
       }
       return (
         sum +
-        (transaction.unitPrice - product.purchasePrice) * transaction.quantity
+        (transaction.unitPrice - (product.purchasePrice || 0)) *
+          transaction.quantity
       );
     }, 0);
 

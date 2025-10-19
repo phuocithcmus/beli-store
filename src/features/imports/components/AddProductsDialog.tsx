@@ -124,7 +124,7 @@ export function AddProductsDialog({
       return; // Already selected
     }
 
-    const basePrice = variant?.sellingPrice || product.purchasePrice;
+    const basePrice = variant?.sellingPrice || product.purchasePrice || 0;
 
     setSelectedItems((prev) => [
       ...prev,
@@ -324,7 +324,7 @@ export function AddProductsDialog({
                                     </span>
                                     <span>•</span>
                                     <span>
-                                      {formatVND(product.purchasePrice)}
+                                      {formatVND(product.purchasePrice || 0)}
                                     </span>
                                   </div>
                                   {hasVariants && (
@@ -397,7 +397,8 @@ export function AddProductsDialog({
                                         Available: {availableStock} •{' '}
                                         {formatVND(
                                           variant.sellingPrice ||
-                                            product.purchasePrice
+                                            product.purchasePrice ||
+                                            0
                                         )}
                                       </div>
                                     </div>

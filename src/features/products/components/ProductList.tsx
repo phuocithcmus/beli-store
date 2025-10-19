@@ -181,7 +181,7 @@ export function ProductList({
                       </span>
                     </td>
                     <td className="p-4 text-right font-mono">
-                      {formatVND(product.purchasePrice)}
+                      {formatVND(product.purchasePrice || 0)}
                     </td>
                     <td className="p-4 text-right font-mono">
                       {product.sellingPrice ? (
@@ -201,7 +201,8 @@ export function ProductList({
                         <span className="italic text-muted-foreground">
                           Cost:{' '}
                           {formatVND(
-                            product.remainingQuantity * product.purchasePrice
+                            product.remainingQuantity *
+                              (product.purchasePrice || 0)
                           )}
                         </span>
                       )}

@@ -9,18 +9,28 @@ export const ProductSchema = z
     category: z.enum(['shirt', 'pants']),
     remainingQuantity: z.number().int().min(0, 'Quantity cannot be negative'),
     soldQuantity: z.number().int().min(0, 'Sold quantity cannot be negative'),
-    purchasePrice: z.number().positive('Purchase price must be positive'),
+    purchasePrice: z
+      .number()
+      .positive('Purchase price must be positive')
+      .optional(), // Made optional since pricing is handled via import phases
     sellingPrice: z
       .number()
       .positive('Selling price must be positive')
-      .optional(), // P3: Made optional
+      .optional(), // Made optional since pricing is handled via revenue entries
     createdAt: z.date(),
     updatedAt: z.date(),
   })
   .refine(
-    (data) => !data.sellingPrice || data.sellingPrice > data.purchasePrice,
+    (data) => {
+      // Only validate price relationship if both prices are provided
+      if (data.purchasePrice && data.sellingPrice) {
+        return data.sellingPrice > data.purchasePrice;
+      }
+      return true;
+    },
     {
-      message: 'Selling price must be greater than purchase price when set',
+      message:
+        'Selling price must be greater than purchase price when both are provided',
       path: ['sellingPrice'],
     }
   );
@@ -111,13 +121,27 @@ export const ProductFormSchema = z
       .min(0, 'Quantity cannot be negative'),
     purchasePrice: z.coerce
       .number()
-      .positive('Purchase price must be positive'),
-    sellingPrice: z.coerce.number().positive('Selling price must be positive'),
+      .positive('Purchase price must be positive')
+      .optional(), // Made optional since pricing is handled via import phases
+    sellingPrice: z.coerce
+      .number()
+      .positive('Selling price must be positive')
+      .optional(), // Made optional since pricing is handled via revenue entries
   })
-  .refine((data) => data.sellingPrice > data.purchasePrice, {
-    message: 'Selling price must be greater than purchase price',
-    path: ['sellingPrice'],
-  });
+  .refine(
+    (data) => {
+      // Only validate price relationship if both prices are provided
+      if (data.purchasePrice && data.sellingPrice) {
+        return data.sellingPrice > data.purchasePrice;
+      }
+      return true;
+    },
+    {
+      message:
+        'Selling price must be greater than purchase price when both are provided',
+      path: ['sellingPrice'],
+    }
+  );
 
 export const ImportPhaseFormSchema = z
   .object({
